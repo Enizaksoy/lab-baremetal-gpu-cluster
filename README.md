@@ -1,10 +1,12 @@
-# Building a Bare Metal AI Training Cluster with V100 GPUs
+# LAB: Bare Metal GPU Cluster Setup with V100 GPUs
 
-A comprehensive guide to setting up a multi-node GPU cluster with RDMA networking for distributed AI training.
+A comprehensive LAB guide to setting up a multi-node GPU cluster with RDMA networking for distributed AI training.
 
 **Author:** Eniz Aksoy (CCIE #23970)
 **Hardware:** HYVE G2GPU12 GPU Servers, NVIDIA Tesla V100, Mellanox ConnectX-3 Pro
 **OS:** Ubuntu 22.04.5 LTS
+
+> 📘 **New to this project?** Start with the [Step-by-Step LAB Guide](SETUP_GUIDE_STEP_BY_STEP.md) - it walks through every step with actual commands, outputs, and key learnings!
 
 ---
 

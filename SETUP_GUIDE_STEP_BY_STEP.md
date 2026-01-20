@@ -1,10 +1,10 @@
-# GPU Cluster Setup - Complete Step-by-Step Guide
+# GPU Cluster LAB Setup - Complete Step-by-Step Guide
 
 **Author:** Eniz Aksoy (CCIE #23970)
 **Date:** January 2026
 **Hardware:** 2× HYVE G2GPU12, 4× Tesla V100 16GB, Mellanox ConnectX-3 Pro 40GbE
 
-This guide documents every step of building a bare-metal AI training cluster, including commands, outputs, and key learnings.
+This LAB guide documents every step of building a bare-metal AI training cluster, including commands, actual outputs, and key learnings from hands-on experience.
 
 ---
 
