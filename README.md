@@ -18,8 +18,10 @@ A comprehensive guide to setting up a multi-node GPU cluster with RDMA networkin
 6. [Network Configuration](#network-configuration)
 7. [Serial Console (SOL) Setup](#serial-console-sol-setup)
 8. [NVIDIA Driver Installation](#nvidia-driver-installation)
-9. [RDMA/RoCEv2 Configuration](#rdmarocev2-configuration)
-10. [Troubleshooting](#troubleshooting)
+9. [NCCL Setup for Distributed Training](#nccl-setup-for-distributed-training)
+10. [RDMA/RoCEv2 Configuration](#rdmarocev2-configuration)
+11. [Network Upgrade Plan](#network-upgrade-plan)
+12. [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -395,12 +397,184 @@ ipmitool -I lanplus -H <IPMI_IP> -U admin -P admin sol deactivate
 
 ## NVIDIA Driver Installation
 
-*Coming soon*
+### Install NVIDIA Drivers
 
 ```bash
 # Add NVIDIA repository
-# Install drivers
-# Verify with nvidia-smi
+wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/cuda-keyring_1.1-1_all.deb
+sudo dpkg -i cuda-keyring_1.1-1_all.deb
+sudo apt update
+
+# Install driver (installs latest compatible version)
+sudo apt install -y nvidia-driver-535
+
+# Reboot required
+sudo reboot
+```
+
+### Verify Installation
+
+```bash
+nvidia-smi
+```
+
+**Expected Output:**
+```
++-----------------------------------------------------------------------------------------+
+| NVIDIA-SMI 580.126.09             Driver Version: 580.126.09     CUDA Version: 13.0    |
+|-----------------------------------------+------------------------+----------------------+
+| GPU  Name                 Persistence-M | Bus-Id          Disp.A | Volatile Uncorr. ECC |
+| Fan  Temp   Perf          Pwr:Usage/Cap |           Memory-Usage | GPU-Util  Compute M. |
+|=========================================+========================+======================|
+|   0  Tesla V100-PCIE-16GB           Off | 00000000:02:00.0   Off |                    0 |
+| N/A   30C    P0              25W / 250W |       0MiB / 16384MiB  |      0%      Default |
++-----------------------------------------+------------------------+----------------------+
+|   1  Tesla V100-PCIE-16GB           Off | 00000000:03:00.0   Off |                    0 |
+| N/A   30C    P0              25W / 250W |       0MiB / 16384MiB  |      0%      Default |
++-----------------------------------------+------------------------+----------------------+
+```
+
+### Install CUDA Toolkit
+
+```bash
+# Install CUDA 12.6 toolkit (includes nvcc compiler)
+sudo apt install cuda-toolkit-12-6 -y
+
+# Add to PATH
+echo 'export PATH=/usr/local/cuda-12.6/bin:$PATH' >> ~/.bashrc
+echo 'export LD_LIBRARY_PATH=/usr/local/cuda-12.6/lib64:$LD_LIBRARY_PATH' >> ~/.bashrc
+source ~/.bashrc
+
+# Verify
+nvcc --version
+```
+
+---
+
+## NCCL Setup for Distributed Training
+
+NCCL (NVIDIA Collective Communications Library) enables efficient multi-GPU and multi-node communication for distributed AI training.
+
+### Install NCCL
+
+```bash
+# Install NCCL matching CUDA version
+sudo apt install libnccl2=2.21.5-1+cuda12.4 libnccl-dev=2.21.5-1+cuda12.4 -y
+```
+
+### Install OpenMPI (for multi-node)
+
+```bash
+sudo apt install openmpi-bin libopenmpi-dev -y
+```
+
+### Build NCCL-Tests
+
+```bash
+# Clone nccl-tests
+git clone https://github.com/NVIDIA/nccl-tests.git
+cd nccl-tests
+
+# Build with MPI support
+make MPI=1 CUDA_HOME=/usr/local/cuda-12.6 NCCL_HOME=/usr MPI_HOME=/usr/lib/x86_64-linux-gnu/openmpi
+```
+
+### Set Up Passwordless SSH (Required for MPI)
+
+```bash
+# Generate key without passphrase
+ssh-keygen -t rsa -b 4096 -f ~/.ssh/id_rsa_mpi -N ""
+
+# Copy to other server
+ssh-copy-id -i ~/.ssh/id_rsa_mpi eniz@<other_server_ip>
+
+# Create SSH config (~/.ssh/config)
+cat >> ~/.ssh/config << 'EOF'
+Host 192.168.1.71
+    IdentityFile ~/.ssh/id_rsa_mpi
+    StrictHostKeyChecking no
+
+Host 192.168.1.73
+    IdentityFile ~/.ssh/id_rsa_mpi
+    StrictHostKeyChecking no
+EOF
+chmod 600 ~/.ssh/config
+```
+
+### NCCL Performance Results (January 2026)
+
+#### Intra-Node Test (2 GPUs, same server)
+
+```bash
+cd ~/nccl-tests/build
+./all_reduce_perf -b 8 -e 128M -f 2 -g 2
+```
+
+| Data Size | Bus Bandwidth | Notes |
+|-----------|---------------|-------|
+| 8 B - 4 KB | 0.0 - 0.4 GB/s | Latency dominated |
+| 8 KB - 128 KB | 0.7 - 2.9 GB/s | Transitioning |
+| 1 MB - 128 MB | 6.3 - 7.1 GB/s | **Peak PCIe bandwidth** |
+
+**Peak Performance:** 7.09 GB/s at 128MB (GPU-to-GPU via PCIe)
+
+#### Multi-Node Test (4 GPUs across 2 servers)
+
+```bash
+# Run from either server
+mpirun -np 4 --host 192.168.1.73:2,192.168.1.71:2 \
+  -x NCCL_DEBUG=INFO \
+  -x NCCL_IB_DISABLE=0 \
+  -x LD_LIBRARY_PATH \
+  ./all_reduce_perf -b 8 -e 128M -f 2 -g 1
+```
+
+| Data Size | Bus Bandwidth | Notes |
+|-----------|---------------|-------|
+| 8 B - 4 KB | 0.0 - 0.1 GB/s | Latency dominated |
+| 32 KB - 512 KB | 0.5 - 1.1 GB/s | RDMA warming up |
+| 1 MB - 128 MB | 1.4 - 2.0 GB/s | **Cross-server RDMA** |
+
+**Peak Performance:** ~2.0 GB/s busbw at 128MB (via RDMA)
+
+### NCCL Communication Paths
+
+```
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                    NCCL DATA PATHS                                              │
+├─────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                 │
+│   INTRA-NODE (same server):                                                    │
+│   GPU0 ◄──── PCIe/SHM ────► GPU1                                              │
+│   Bandwidth: ~7 GB/s                                                           │
+│   Path: via SHM/direct/direct                                                  │
+│                                                                                 │
+│   INTER-NODE (across servers):                                                 │
+│   GPU0(srv1) ◄──── RDMA (RoCE) ────► GPU0(srv2)                               │
+│   Bandwidth: ~2 GB/s                                                           │
+│   Path: via NET/IB/0                                                           │
+│                                                                                 │
+│   Note: ConnectX-3 doesn't support GPUDirect RDMA                             │
+│   Data path: GPU → CPU Memory → RDMA → CPU Memory → GPU                       │
+│                                                                                 │
+└─────────────────────────────────────────────────────────────────────────────────┘
+```
+
+### NCCL Environment Variables
+
+```bash
+# Enable RDMA
+export NCCL_IB_DISABLE=0
+export NCCL_NET=IB
+
+# Specify RDMA device (optional)
+export NCCL_IB_HCA=mlx4_0:1,mlx4_0:2
+
+# RoCE GID index
+export NCCL_IB_GID_INDEX=2
+
+# Debug output
+export NCCL_DEBUG=INFO
 ```
 
 ---
@@ -553,6 +727,112 @@ rping -c -a 10.0.0.2 -v
 ### Cable Notes
 
 We tested with a **Wiitek 2M QSFP+ DAC** cable. Initially saw 10G speeds due to a bad cable - swapping to a known-good cable achieved full 40G.
+
+---
+
+## Network Upgrade Plan
+
+### Current Limitations
+
+The ConnectX-3 Pro doesn't support **GPUDirect RDMA**, meaning data must be staged through CPU memory:
+
+```
+Current Path:  GPU → CPU Memory → RDMA NIC → Network → RDMA NIC → CPU Memory → GPU
+Ideal Path:    GPU → RDMA NIC → Network → RDMA NIC → GPU (with GPUDirect)
+```
+
+This reduces effective NCCL bandwidth from ~4.5 GB/s (raw RDMA) to ~2 GB/s.
+
+### Recommended Upgrade: ConnectX-4 EN
+
+| Current | Upgrade |
+|---------|---------|
+| ConnectX-3 Pro (MCX354A) | ConnectX-4 EN (MCX416A-CCAT) |
+| No GPUDirect RDMA | ✅ GPUDirect RDMA |
+| mlx4 driver | mlx5 driver (better NCCL support) |
+| QSFP+ 40GbE | QSFP28 (backward compatible with 40G) |
+| ~2 GB/s NCCL | ~4 GB/s NCCL (estimated) |
+
+**eBay Search:** `MCX416A-CCAT` or `MCX516A-CCAT` (~$50-100 each)
+
+### Future Architecture (Separate GPU + Storage Networks)
+
+```
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                    RECOMMENDED: SEPARATE NETWORKS                               │
+├─────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                 │
+│   gpuserver1                              gpuserver2                           │
+│   ┌────────────────────────┐             ┌────────────────────────┐            │
+│   │  V100      V100        │             │  V100      V100        │            │
+│   │    │        │          │             │    │        │          │            │
+│   │  ┌─┴────────┴─┐        │             │  ┌─┴────────┴─┐        │            │
+│   │  │ ConnectX-4 │ (NEW)  │             │  │ ConnectX-4 │ (NEW)  │            │
+│   │  │ GPU Traffic│        │             │  │ GPU Traffic│        │            │
+│   │  │ GPUDirect ✅│        │             │  │ GPUDirect ✅│        │            │
+│   │  └─────┬──────┘        │             │  └─────┬──────┘        │            │
+│   │        │               │             │        │               │            │
+│   │  ┌─────┴──────┐        │             │  ┌─────┴──────┐        │            │
+│   │  │ ConnectX-3 │ (OLD)  │             │  │ ConnectX-3 │ (OLD)  │            │
+│   │  │ Storage    │        │             │  │ Storage    │        │            │
+│   │  └─────┬──────┘        │             │  └─────┬──────┘        │            │
+│   └────────┼───────────────┘             └────────┼───────────────┘            │
+│            │                                      │                            │
+│   ═════════╪══════════════════════════════════════╪═════════════════           │
+│            │         GPU NETWORK (40GbE)          │                            │
+│            │         Cisco 9332 Switch            │                            │
+│            │         NCCL Traffic Only            │                            │
+│   ═════════╪══════════════════════════════════════╪═════════════════           │
+│            │                                      │                            │
+│   ─────────┼──────────────────────────────────────┼─────────────────           │
+│            │      STORAGE NETWORK (40GbE)         │                            │
+│            │      Separate Switch/VLAN            │                            │
+│            │      NVMe-oF / NFS Traffic           │                            │
+│            └──────────────┬───────────────────────┘                            │
+│                           │                                                    │
+│                   ┌───────┴───────┐                                           │
+│                   │ Storage Server │                                          │
+│                   │ (NAS/SAN)      │                                          │
+│                   └────────────────┘                                          │
+│                                                                                 │
+└─────────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Why Separate Networks?
+
+| Traffic Type | Pattern | Requirement |
+|--------------|---------|-------------|
+| **GPU/NCCL** | Bursty, synchronized | Low latency critical |
+| **Storage** | Continuous streaming | High throughput critical |
+
+Mixing them causes GPU sync delays when storage I/O competes for bandwidth.
+
+### Network Speed Requirements by Model Size
+
+| Model | Gradient Size | Min Network Needed | Your 40G + GPUDirect |
+|-------|--------------|--------------------|-----------------------|
+| ResNet-50 | 100 MB | ~1 GB/s | ✅ More than enough |
+| BERT-Base | 440 MB | ~3 GB/s | ✅ Good |
+| BERT-Large | 1.4 GB | ~4.5 GB/s | ⚠️ Borderline |
+| GPT-2 | 6 GB | ~7.5 GB/s | ❌ Need 100G |
+
+> 💡 For V100 16GB GPUs, 40GbE with GPUDirect covers most realistic training scenarios.
+
+### Upgrade Shopping List
+
+```
+MINIMAL UPGRADE (GPUDirect only):
+├── 2× ConnectX-4 EN (MCX416A-CCAT)     ~$100-160 total
+└── Keep existing switch + cables
+
+FULL UPGRADE (Separate GPU + Storage):
+├── 2× ConnectX-4 EN (for GPU)          ~$100-160 total
+├── Keep 2× ConnectX-3 (for storage)    $0 (reuse!)
+├── 1× Small 40G switch (storage)       ~$50-100 used
+└── Cisco 9332 for GPU network          (already owned)
+
+Total: ~$150-260 for significant improvement
+```
 
 ---
 

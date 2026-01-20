@@ -299,6 +299,61 @@ Over 100 epochs: **Save ~108 minutes** with RDMA vs TCP!
 
 ---
 
+## Actual NCCL Test Results (January 2026)
+
+### Intra-Node Test (2 GPUs on Same Server)
+
+```bash
+./all_reduce_perf -b 8 -e 128M -f 2 -g 2
+```
+
+| Data Size | Time | Bus Bandwidth |
+|-----------|------|---------------|
+| 8 B | 10 µs | ~0 GB/s |
+| 1 KB | 10 µs | 0.10 GB/s |
+| 64 KB | 30 µs | 2.2 GB/s |
+| 1 MB | 165 µs | 6.3 GB/s |
+| 128 MB | 18.9 ms | **7.09 GB/s** |
+
+**Peak:** 7.09 GB/s (GPU-to-GPU via PCIe shared memory)
+
+### Multi-Node Test (4 GPUs Across 2 Servers)
+
+```bash
+mpirun -np 4 --host 192.168.1.73:2,192.168.1.71:2 \
+  -x NCCL_DEBUG=INFO -x NCCL_IB_DISABLE=0 -x LD_LIBRARY_PATH \
+  ./all_reduce_perf -b 8 -e 128M -f 2 -g 1
+```
+
+| Data Size | Time | Bus Bandwidth |
+|-----------|------|---------------|
+| 8 B | 400 µs | ~0 GB/s |
+| 64 KB | 185 µs | 0.53 GB/s |
+| 1 MB | 1.5 ms | 1.0 GB/s |
+| 8 MB | 6.9 ms | 1.8 GB/s |
+| 128 MB | 108 ms | **~2.0 GB/s** |
+
+**Peak:** ~2.0 GB/s (4 GPUs across RDMA network)
+
+### Why Multi-Node is Slower
+
+```
+NCCL detected these paths:
+├── Intra-server: "via SHM/direct/direct" (shared memory, 7 GB/s)
+└── Inter-server: "via NET/IB/0" (RDMA/RoCE, 2 GB/s)
+
+ConnectX-3 limitation:
+├── No GPUDirect RDMA support
+├── Data path: GPU → CPU RAM → RDMA → CPU RAM → GPU
+└── Extra memory copies reduce effective bandwidth
+
+With ConnectX-4+ (GPUDirect):
+├── Data path: GPU → RDMA → GPU
+└── Expected: ~4 GB/s (near raw RDMA speed)
+```
+
+---
+
 ## Summary: Why This Cluster is Fast
 
 | Component | What It Does | Your Performance |
