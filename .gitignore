@@ -1,0 +1,24 @@
+# Credentials and secrets
+*.pem
+*.key
+credentials.txt
+secrets.yaml
+.env
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Editor files
+*.swp
+*.swo
+*~
+.idea/
+.vscode/
+
+# Logs
+*.log
+
+# Temporary files
+*.tmp
+*.bak
