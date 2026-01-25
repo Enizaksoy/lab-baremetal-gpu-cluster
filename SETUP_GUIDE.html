@@ -1,0 +1,1167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GPU Cluster LAB Setup Guide</title>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/lib/highlight.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/styles/github-dark.min.css">
+    <style>
+        :root {
+            --bg-color: #1a1a2e;
+            --sidebar-bg: #16213e;
+            --content-bg: #1a1a2e;
+            --text-color: #e6e6e6;
+            --heading-color: #00d9ff;
+            --link-color: #00d9ff;
+            --link-hover: #00ffcc;
+            --code-bg: #0f0f1a;
+            --border-color: #2a2a4a;
+            --table-header: #16213e;
+            --table-row-odd: #1f1f3a;
+            --table-row-even: #1a1a2e;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            line-height: 1.6;
+            display: flex;
+            min-height: 100vh;
+        }
+
+        #sidebar {
+            width: 320px;
+            min-width: 320px;
+            background-color: var(--sidebar-bg);
+            border-right: 1px solid var(--border-color);
+            padding: 20px;
+            position: fixed;
+            height: 100vh;
+            overflow-y: auto;
+            z-index: 100;
+        }
+
+        #sidebar h2 {
+            color: var(--heading-color);
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid var(--heading-color);
+            font-size: 1.2rem;
+        }
+
+        #toc { list-style: none; }
+
+        /* Main section items (h2) */
+        .toc-section {
+            margin: 3px 0;
+        }
+
+        .toc-section-header {
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            padding: 10px 12px;
+            border-radius: 5px;
+            transition: all 0.2s ease;
+            color: var(--text-color);
+            font-weight: bold;
+            font-size: 0.9rem;
+        }
+
+        .toc-section-header:hover {
+            background-color: rgba(0, 217, 255, 0.1);
+            color: var(--link-color);
+        }
+
+        .toc-section-header.active {
+            background-color: rgba(0, 217, 255, 0.2);
+            color: var(--link-color);
+            border-left: 3px solid var(--link-color);
+        }
+
+        .toc-toggle {
+            margin-right: 8px;
+            font-size: 0.7rem;
+            transition: transform 0.2s ease;
+            width: 12px;
+            text-align: center;
+        }
+
+        .toc-section.expanded .toc-toggle {
+            transform: rotate(90deg);
+        }
+
+        .toc-section-title {
+            flex: 1;
+            text-decoration: none;
+            color: inherit;
+        }
+
+        /* Sub-section items (h3) */
+        .toc-subsections {
+            list-style: none;
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+        }
+
+        .toc-section.expanded .toc-subsections {
+            max-height: 500px;
+        }
+
+        .toc-subsection a {
+            display: block;
+            padding: 6px 12px 6px 32px;
+            color: var(--text-color);
+            text-decoration: none;
+            font-size: 0.82rem;
+            opacity: 0.85;
+            border-radius: 4px;
+            transition: all 0.2s ease;
+        }
+
+        .toc-subsection a:hover {
+            background-color: rgba(0, 217, 255, 0.1);
+            color: var(--link-color);
+            opacity: 1;
+            padding-left: 38px;
+        }
+
+        .toc-subsection a.active {
+            background-color: rgba(0, 217, 255, 0.15);
+            color: var(--link-color);
+            opacity: 1;
+        }
+
+        #main {
+            margin-left: 320px;
+            flex: 1;
+            padding: 40px 60px;
+            max-width: 1000px;
+        }
+
+        #content h1 {
+            color: var(--heading-color);
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            padding-bottom: 15px;
+            border-bottom: 3px solid var(--heading-color);
+        }
+        #content h2 {
+            color: var(--heading-color);
+            font-size: 1.8rem;
+            margin-top: 50px;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--border-color);
+            scroll-margin-top: 20px;
+        }
+        #content h3 {
+            color: #66d9ff;
+            font-size: 1.3rem;
+            margin-top: 30px;
+            margin-bottom: 15px;
+            scroll-margin-top: 20px;
+        }
+        #content h4 { color: #99e6ff; font-size: 1.1rem; margin-top: 20px; margin-bottom: 10px; }
+        #content p { margin-bottom: 15px; }
+        #content a { color: var(--link-color); text-decoration: none; }
+        #content a:hover { color: var(--link-hover); text-decoration: underline; }
+
+        #content pre {
+            background-color: var(--code-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 20px;
+            overflow-x: auto;
+            margin: 20px 0;
+        }
+        #content code { font-family: 'Consolas', 'Monaco', monospace; font-size: 0.9rem; }
+        #content p code, #content li code {
+            background-color: var(--code-bg);
+            padding: 2px 8px;
+            border-radius: 4px;
+            color: #ff79c6;
+        }
+
+        #content table { width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 0.9rem; }
+        #content th {
+            background-color: var(--table-header);
+            color: var(--heading-color);
+            padding: 12px 15px;
+            text-align: left;
+            border: 1px solid var(--border-color);
+        }
+        #content td { padding: 10px 15px; border: 1px solid var(--border-color); }
+        #content tr:nth-child(odd) { background-color: var(--table-row-odd); }
+        #content tr:nth-child(even) { background-color: var(--table-row-even); }
+        #content tr:hover { background-color: rgba(0, 217, 255, 0.1); }
+
+        #content blockquote {
+            border-left: 4px solid var(--heading-color);
+            background-color: rgba(0, 217, 255, 0.05);
+            padding: 15px 20px;
+            margin: 20px 0;
+            border-radius: 0 8px 8px 0;
+        }
+        #content blockquote p { margin-bottom: 0; }
+
+        #content ul, #content ol { margin: 15px 0; padding-left: 30px; }
+        #content li { margin: 8px 0; }
+        #content hr { border: none; height: 1px; background: linear-gradient(to right, var(--border-color), var(--heading-color), var(--border-color)); margin: 40px 0; }
+        #content strong { color: #fff; }
+
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: var(--bg-color); }
+        ::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--heading-color); }
+
+        #menu-toggle {
+            display: none;
+            position: fixed;
+            top: 15px;
+            left: 15px;
+            z-index: 200;
+            background-color: var(--heading-color);
+            color: var(--bg-color);
+            border: none;
+            padding: 10px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        @media (max-width: 900px) {
+            #sidebar { transform: translateX(-100%); transition: transform 0.3s ease; }
+            #sidebar.open { transform: translateX(0); }
+            #main { margin-left: 0; padding: 20px; }
+            #menu-toggle { display: block; }
+            #content h1 { font-size: 1.8rem; margin-top: 40px; }
+            #content h2 { font-size: 1.4rem; }
+        }
+
+        #back-to-top {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            background-color: var(--heading-color);
+            color: var(--bg-color);
+            border: none;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 20px;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            z-index: 100;
+        }
+        #back-to-top.visible { opacity: 1; }
+        #back-to-top:hover { background-color: var(--link-hover); }
+
+        @media print {
+            #sidebar, #menu-toggle, #back-to-top { display: none; }
+            #main { margin-left: 0; }
+            body { background: white; color: black; }
+            #content h1, #content h2, #content h3 { color: #333; }
+            #content pre { border: 1px solid #ccc; background: #f5f5f5; }
+        }
+    </style>
+</head>
+<body>
+    <button id="menu-toggle" onclick="toggleSidebar()">&#9776; Menu</button>
+
+    <nav id="sidebar">
+        <h2>Table of Contents</h2>
+        <ul id="toc"></ul>
+    </nav>
+
+    <main id="main">
+        <div id="content"></div>
+    </main>
+
+    <button id="back-to-top" onclick="scrollToTop()">&#8593;</button>
+
+    <script id="markdown-content" type="text/plain">
+# GPU Cluster LAB Setup - Complete Step-by-Step Guide
+
+**Author:** Eniz Aksoy (CCIE #23970)
+**Date:** January 2026
+**Hardware:** 2x HYVE G2GPU12, 4x Tesla V100 16GB, Mellanox ConnectX-3 Pro 40GbE
+
+This LAB guide documents every step of building a bare-metal AI training cluster, including commands, actual outputs, and key learnings from hands-on experience.
+
+---
+
+## Table of Contents
+
+0. [Step 0: Identify RDMA Device Name](#step-0-identify-rdma-device-name)
+1. [Step 1: Configure RDMA Network (40G Ports)](#step-1-configure-rdma-network-40g-ports)
+1.5. [Step 1.5: Configure Leaf Switches (Optional)](#step-15-configure-leaf-switches-optional)
+2. [Step 2: Test RDMA Performance](#step-2-test-rdma-performance)
+3. [Step 3: Compare TCP vs RDMA](#step-3-compare-tcp-vs-rdma)
+4. [Step 4: Install NVIDIA Drivers](#step-4-install-nvidia-drivers)
+5. [Step 5: Install CUDA Toolkit](#step-5-install-cuda-toolkit)
+6. [Step 6: Install NCCL Library](#step-6-install-nccl-library)
+7. [Step 7: Build NCCL-Tests](#step-7-build-nccl-tests)
+8. [Step 8: Test Intra-Node NCCL](#step-8-test-intra-node-nccl)
+9. [Step 9: Install OpenMPI](#step-9-install-openmpi)
+10. [Step 10: Set Up Passwordless SSH](#step-10-set-up-passwordless-ssh)
+11. [Step 11: Rebuild NCCL-Tests with MPI](#step-11-rebuild-nccl-tests-with-mpi)
+12. [Step 12: Test Multi-Node NCCL](#step-12-test-multi-node-nccl)
+13. [Understanding the Results](#understanding-the-results)
+14. [Network Upgrade Path](#network-upgrade-path)
+
+---
+
+## Step 0: Identify RDMA Device Name
+
+### Goal
+Find the correct RDMA device name before running any tests. Device names can vary based on kernel version and driver configuration.
+
+### Commands
+
+```bash
+# List all RDMA devices
+ibv_devices
+
+# Show detailed device info (ports, state, speed)
+ibstat
+```
+
+### Example Output
+
+```
+$ ibv_devices
+    device              node GUID
+    ------              ----------------
+    rocep130s0          248a070300685ac0
+
+$ ibstat
+CA 'rocep130s0'
+    CA type: MT4103
+    Number of ports: 2
+    Firmware version: 2.38.5000
+    Port 1:
+        State: Active
+        Physical state: LinkUp
+        Rate: 40
+        Link layer: Ethernet
+    Port 2:
+        State: Active
+        Physical state: LinkUp
+        Rate: 40
+        Link layer: Ethernet
+```
+
+### Device Naming Convention
+
+| Naming Style | Example | When Used |
+|--------------|---------|-----------|
+| Legacy IB | `mlx4_0` | Older kernels, InfiniBand mode |
+| RoCE/PCIe | `rocep130s0` | Newer kernels, RoCE mode |
+
+> **Important:** The device name `rocep130s0` means: `roce` (RoCE device) + `p130` (PCIe bus 130) + `s0` (slot 0). Your device name may differ based on PCIe topology.
+
+### Port to Interface Mapping
+
+| IB Port | Linux Interface | IP Subnet | VLAN |
+|---------|-----------------|-----------|------|
+| Port 1 | ens6 | 10.0.1.0/24 | 101 |
+| Port 2 | ens6d1 | 10.0.0.0/24 | 100 |
+
+---
+
+## Step 1: Configure RDMA Network (40G Ports)
+
+### Goal
+Configure both 40GbE ports on the ConnectX-3 Pro with persistent IP addresses for RDMA communication.
+
+### Server Reference
+
+| Server | Management IP | IPMI IP | Port1/ens6 (VLAN 101) | Port2/ens6d1 (VLAN 100) |
+|--------|--------------|---------|----------------------|------------------------|
+| gpuserver1 | 192.168.1.73 | 192.168.1.72 | 10.0.1.1 | 10.0.0.1 |
+| gpuserver2 | 192.168.1.71 | 192.168.1.70 | 10.0.1.2 | 10.0.0.2 |
+
+### Switch Port Connections
+
+| Server | Interface | Switch | Port | VLAN |
+|--------|-----------|--------|------|------|
+| gpuserver1 | ens6 | Leaf 1 | Eth1/28 | 101 |
+| gpuserver1 | ens6d1 | Leaf 2 | Eth1/28 | 100 |
+| gpuserver2 | ens6 | Leaf 1 | Eth1/27 | 101 |
+| gpuserver2 | ens6d1 | Leaf 2 | Eth1/27 | 100 |
+
+### Configuration
+
+Edit `/etc/netplan/01-network.yaml` on **gpuserver1**:
+
+```yaml
+network:
+  version: 2
+  ethernets:
+    enp5s0:
+      dhcp4: true
+    enp6s0:
+      dhcp4: true
+      optional: true
+    ens6:
+      dhcp4: false
+      addresses:
+        - 10.0.1.1/24
+      mtu: 9000
+      optional: true
+    ens6d1:
+      dhcp4: false
+      addresses:
+        - 10.0.0.1/24
+      mtu: 9000
+      optional: true
+```
+
+Edit `/etc/netplan/01-network.yaml` on **gpuserver2**:
+
+```yaml
+network:
+  version: 2
+  ethernets:
+    enp5s0:
+      dhcp4: true
+    enp6s0:
+      dhcp4: true
+      optional: true
+    ens6:
+      dhcp4: false
+      addresses:
+        - 10.0.1.2/24
+      mtu: 9000
+      optional: true
+    ens6d1:
+      dhcp4: false
+      addresses:
+        - 10.0.0.2/24
+      mtu: 9000
+      optional: true
+```
+
+### Commands
+
+```bash
+# Apply configuration
+sudo netplan apply
+
+# Verify interfaces
+ip addr show ens6
+ip addr show ens6d1
+
+# Test connectivity
+ping -c 3 10.0.0.2   # From gpuserver1
+ping -c 3 10.0.1.2   # From gpuserver1
+```
+
+### Key Learning
+
+> **Why MTU 9000?** Jumbo frames (9000 bytes) reduce CPU overhead by sending fewer, larger packets. This is especially important for RDMA where we want maximum throughput with minimum CPU involvement.
+
+---
+
+## Step 1.5: Configure Leaf Switches (Optional)
+
+### Goal
+Configure Cisco Nexus leaf switches for RoCE/RDMA traffic. Skip this if using back-to-back direct connections.
+
+### Network Topology
+
+```
+                 +-------------------+     +-------------------+
+                 |     Leaf 1        |<--->|     Leaf 2        |
+                 |   (10.2.0.2)      |     |   (10.2.0.3)      |
+                 | Cisco N9K-9332    |     | Cisco N9K-9332    |
+                 +---+----------+----+     +---+----------+----+
+                 Eth1/27    Eth1/28        Eth1/27    Eth1/28
+                     |          |              |          |
+                     |          +--------------+----------+
+                     |                         |
+                     v                         v
+              +-------------+           +-------------+
+              | gpuserver2  |           | gpuserver1  |
+              |ens6  ens6d1 |           |ens6  ens6d1 |
+              +-------------+           +-------------+
+```
+
+### Switch Credentials
+
+| Device | IP | Username | Password |
+|--------|-----|----------|----------|
+| Leaf 1 | 10.2.0.2 | cisco | cisco |
+| Leaf 2 | 10.2.0.3 | cisco | cisco |
+
+### VLAN Configuration
+
+| VLAN | Subnet | Purpose | Server Interface |
+|------|--------|---------|------------------|
+| 100 | 10.0.0.0/24 | RDMA Network 1 | ens6d1 (Port 2) |
+| 101 | 10.0.1.0/24 | RDMA Network 2 | ens6 (Port 1) |
+
+### Switch Port Configuration (NX-OS)
+
+```
+! Create VLANs
+vlan 100
+  name RDMA_Network_1
+vlan 101
+  name RDMA_Network_2
+
+! Configure GPU server ports
+interface Ethernet1/27
+  description GPU_Server_Port
+  switchport
+  switchport mode trunk
+  switchport trunk allowed vlan 100,101
+  mtu 9216
+  no shutdown
+
+interface Ethernet1/28
+  description GPU_Server_Port
+  switchport
+  switchport mode trunk
+  switchport trunk allowed vlan 100,101
+  mtu 9216
+  no shutdown
+
+! Inter-switch link (trunk all VLANs)
+interface Ethernet1/10
+  description Inter_Leaf_Link
+  switchport
+  switchport mode trunk
+  mtu 9216
+  no shutdown
+```
+
+### Enable LLDP on Linux Servers
+
+LLDP helps identify which server port connects to which switch port:
+
+```bash
+# Install LLDP daemon
+sudo apt install -y lldpd
+
+# Enable and start
+sudo systemctl enable --now lldpd
+
+# View neighbors (shows connected switch ports)
+sudo lldpcli show neighbors
+```
+
+### Verify Connectivity
+
+```bash
+# From gpuserver1
+ping -c 3 10.0.0.2   # Test VLAN 100
+ping -c 3 10.0.1.2   # Test VLAN 101
+
+# Check switch MAC tables (from switch CLI)
+show mac address-table dynamic
+show lldp neighbors
+```
+
+### Key Learning
+
+> **Back-to-Back vs Switched:** Direct connections give lowest latency (~0.85 us) but limit you to 2 nodes. Switches add ~2-3 us latency but enable scaling to many nodes. For production clusters, switches are essential.
+
+> **VLAN Separation:** Using separate VLANs (100 and 101) for each RDMA network allows for traffic isolation and easier troubleshooting.
+
+---
+
+## Step 2: Test RDMA Performance
+
+### Goal
+Verify RDMA is working and measure bandwidth/latency.
+
+### Prerequisites
+1. Run `ibv_devices` to confirm your device name (e.g., `rocep130s0`)
+2. Run `ibstat` to verify ports are Active and LinkUp
+3. Ensure IP connectivity with `ping`
+
+### Commands
+
+> **Note:** Replace `rocep130s0` with your actual device name from `ibv_devices`
+
+**Test on VLAN 101 (10.0.1.x network via Port 1/ens6):**
+
+```bash
+# On gpuserver2 (server - start first):
+ib_write_bw --ib-dev=rocep130s0 --ib-port=1 --gid-index=2
+
+# On gpuserver1 (client):
+ib_write_bw --ib-dev=rocep130s0 --ib-port=1 --gid-index=2 10.0.1.2
+```
+
+**Test on VLAN 100 (10.0.0.x network via Port 2/ens6d1):**
+
+```bash
+# On gpuserver2 (server - start first):
+ib_write_bw --ib-dev=rocep130s0 --ib-port=2 --gid-index=2
+
+# On gpuserver1 (client):
+ib_write_bw --ib-dev=rocep130s0 --ib-port=2 --gid-index=2 10.0.0.2
+```
+
+**Latency Test (ib_write_lat):**
+
+```bash
+# On gpuserver2 (server):
+ib_write_lat --ib-dev=rocep130s0 --ib-port=1 --gid-index=2
+
+# On gpuserver1 (client):
+ib_write_lat --ib-dev=rocep130s0 --ib-port=1 --gid-index=2 10.0.1.2
+```
+
+### Actual Output
+
+```
+---------------------------------------------------------------------------------------
+                    RDMA_Write BW Test
+---------------------------------------------------------------------------------------
+ #bytes     #iterations    BW peak[MB/sec]    BW average[MB/sec]   MsgRate[Mpps]
+ 65536      5000           4555.12            4554.89              0.072878
+---------------------------------------------------------------------------------------
+```
+
+```
+---------------------------------------------------------------------------------------
+                    RDMA_Write Latency Test
+---------------------------------------------------------------------------------------
+ #bytes        #iterations       t_avg[usec]    t_stdev[usec]
+ 2             1000              0.85           0.05
+---------------------------------------------------------------------------------------
+```
+
+### Results Summary
+
+| Metric | Back-to-Back | Through Switches |
+|--------|--------------|------------------|
+| **Bandwidth** | 4554 MB/s (36.4 Gbps) | 4554 MB/s (36.4 Gbps) |
+| **Latency** | 0.85 us | ~3.5 us |
+| **Link Speed** | 40 Gbps | 40 Gbps |
+
+### Key Learning
+
+> **Why --gid-index=2?** RoCE (RDMA over Converged Ethernet) uses GID (Global Identifier) instead of InfiniBand's LID. GID index 2 corresponds to the RoCEv2 IPv4 configuration on ConnectX-3. Without this flag, the test fails with "Unable to find GID".
+
+---
+
+## Step 3: Compare TCP vs RDMA
+
+### Goal
+Quantify how much faster RDMA is compared to TCP.
+
+### Commands
+
+**TCP Bandwidth (iperf3):**
+
+```bash
+# On gpuserver2:
+iperf3 -s
+
+# On gpuserver1:
+iperf3 -c 10.0.0.2 -t 10
+```
+
+**TCP Latency (sockperf):**
+
+```bash
+# Install
+sudo apt install sockperf -y
+
+# On gpuserver2:
+sockperf sr --tcp -p 12345
+
+# On gpuserver1:
+sockperf pp --tcp -i 10.0.0.2 -p 12345 -t 10
+```
+
+### Results Comparison
+
+| Metric | TCP | RDMA | RDMA Advantage |
+|--------|-----|------|----------------|
+| **Bandwidth** | 27.4 Gbps (3.4 GB/s) | 36.4 Gbps (4.55 GB/s) | 33% faster |
+| **Latency** | 21.9 us | 0.85 us | **26x faster!** |
+
+### Key Learning
+
+> **Why is latency improvement so dramatic?** TCP requires kernel involvement for every packet - context switches, buffer copies, protocol processing. RDMA bypasses the kernel entirely, allowing the NIC to read/write directly to application memory. For AI training where GPUs sync thousands of times per second, this 26x latency reduction is huge!
+
+---
+
+## Step 4: Install NVIDIA Drivers
+
+### Goal
+Install NVIDIA drivers to enable V100 GPU usage.
+
+### Commands
+
+```bash
+# Add NVIDIA repository
+wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/cuda-keyring_1.1-1_all.deb
+sudo dpkg -i cuda-keyring_1.1-1_all.deb
+sudo apt update
+
+# Install driver
+sudo apt install nvidia-driver-535 -y
+
+# Reboot
+sudo reboot
+
+# Verify
+nvidia-smi
+```
+
+### Actual Output
+
+```
++-----------------------------------------------------------------------------------------+
+| NVIDIA-SMI 580.126.09             Driver Version: 580.126.09     CUDA Version: 13.0    |
+|-----------------------------------------+------------------------+----------------------+
+| GPU  Name                 Persistence-M | Bus-Id          Disp.A | Volatile Uncorr. ECC |
+|=========================================+========================+======================|
+|   0  Tesla V100-PCIE-16GB           Off | 00000000:02:00.0   Off |                    0 |
+| N/A   30C    P0              25W / 250W |       0MiB / 16384MiB  |      0%      Default |
++-----------------------------------------+------------------------+----------------------+
+|   1  Tesla V100-PCIE-16GB           Off | 00000000:03:00.0   Off |                    0 |
+| N/A   30C    P0              24W / 250W |       0MiB / 16384MiB  |      0%      Default |
++-----------------------------------------+------------------------+----------------------+
+```
+
+### Key Learning
+
+> **Driver vs CUDA Toolkit:** The NVIDIA driver allows the system to use GPUs (nvidia-smi works). The CUDA Toolkit adds the nvcc compiler and development libraries needed to build GPU applications.
+
+---
+
+## Step 5: Install CUDA Toolkit
+
+### Commands
+
+```bash
+# Install CUDA 12.6 toolkit
+sudo apt install cuda-toolkit-12-6 -y
+
+# Add to PATH
+echo 'export PATH=/usr/local/cuda-12.6/bin:$PATH' >> ~/.bashrc
+echo 'export LD_LIBRARY_PATH=/usr/local/cuda-12.6/lib64:$LD_LIBRARY_PATH' >> ~/.bashrc
+source ~/.bashrc
+
+# Verify
+nvcc --version
+```
+
+---
+
+## Step 6: Install NCCL Library
+
+### Commands
+
+```bash
+# Install NCCL matching CUDA version
+sudo apt install libnccl2=2.21.5-1+cuda12.4 libnccl-dev=2.21.5-1+cuda12.4 -y
+
+# Verify
+dpkg -l | grep nccl
+```
+
+### Key Learning
+
+> **Version Matching is Critical!** NCCL must match your CUDA version. NCCL 2.21.5+cuda12.4 works with CUDA 12.x.
+
+---
+
+## Step 7: Build NCCL-Tests
+
+### Commands
+
+```bash
+# Clone repository
+git clone https://github.com/NVIDIA/nccl-tests.git
+cd nccl-tests
+
+# Build without MPI (single-node testing)
+make MPI=0 CUDA_HOME=/usr/local/cuda-12.6 NCCL_HOME=/usr
+
+# Verify build
+ls build/
+```
+
+---
+
+## Step 8: Test Intra-Node NCCL
+
+### Commands
+
+```bash
+cd ~/nccl-tests/build
+./all_reduce_perf -b 8 -e 128M -f 2 -g 2
+```
+
+### Results
+
+| Data Size | Bus Bandwidth | Notes |
+|-----------|---------------|-------|
+| 8 B - 1 KB | ~0.1 GB/s | Latency dominated |
+| 64 KB | 2.2 GB/s | Bandwidth scaling |
+| 1 MB | 6.3 GB/s | Near peak |
+| **128 MB** | **7.09 GB/s** | **Peak PCIe bandwidth!** |
+
+---
+
+## Step 9: Install OpenMPI
+
+### Commands
+
+```bash
+# Install OpenMPI
+sudo apt install openmpi-bin libopenmpi-dev -y
+
+# Verify
+mpirun --version
+```
+
+---
+
+## Step 10: Set Up Passwordless SSH
+
+### Commands
+
+```bash
+# Generate SSH key without passphrase
+ssh-keygen -t rsa -b 4096 -f ~/.ssh/id_rsa_mpi -N ""
+
+# Copy key to other server
+ssh-copy-id -i ~/.ssh/id_rsa_mpi eniz@192.168.1.71
+
+# Create SSH config on BOTH servers
+cat >> ~/.ssh/config << 'EOF'
+Host 192.168.1.71
+    IdentityFile ~/.ssh/id_rsa_mpi
+    StrictHostKeyChecking no
+
+Host 192.168.1.73
+    IdentityFile ~/.ssh/id_rsa_mpi
+    StrictHostKeyChecking no
+EOF
+chmod 600 ~/.ssh/config
+
+# Test (should NOT ask for password!)
+ssh 192.168.1.71 hostname
+```
+
+---
+
+## Step 11: Rebuild NCCL-Tests with MPI
+
+### Commands
+
+```bash
+cd ~/nccl-tests
+make clean
+make MPI=1 CUDA_HOME=/usr/local/cuda-12.6 NCCL_HOME=/usr MPI_HOME=/usr/lib/x86_64-linux-gnu/openmpi
+```
+
+---
+
+## Step 12: Test Multi-Node NCCL
+
+### Commands
+
+```bash
+cd ~/nccl-tests/build
+
+# Set environment variables
+export NCCL_DEBUG=INFO
+export NCCL_IB_DISABLE=0
+
+# Run 4-GPU test across 2 servers
+mpirun -np 4 --host 192.168.1.73:2,192.168.1.71:2 \
+  -x NCCL_DEBUG=INFO \
+  -x NCCL_IB_DISABLE=0 \
+  -x LD_LIBRARY_PATH \
+  ./all_reduce_perf -b 8 -e 128M -f 2 -g 1
+```
+
+### Results
+
+| Data Size | Bus Bandwidth | Notes |
+|-----------|---------------|-------|
+| 8 B - 1 KB | ~0.0 GB/s | Latency dominated |
+| 128 KB | 0.9 GB/s | RDMA warming up |
+| 8 MB | 1.8 GB/s | Good scaling |
+| **128 MB** | **~2.0 GB/s** | **Peak cross-server** |
+
+---
+
+## Understanding the Results
+
+### Performance Summary
+
+| Test | Configuration | Peak Bandwidth |
+|------|---------------|----------------|
+| Raw RDMA (ib_write_bw) | NIC to NIC | 4.55 GB/s |
+| Intra-node NCCL | 2 GPUs, same server | 7.09 GB/s |
+| Multi-node NCCL | 4 GPUs, 2 servers | ~2.0 GB/s |
+
+---
+
+## Network Upgrade Path
+
+### Recommended Upgrade
+
+| Component | Current | Upgrade To | Cost |
+|-----------|---------|------------|------|
+| NICs | ConnectX-3 Pro | ConnectX-4 EN | ~$50-80 each |
+| Switch | Cisco 9332 | No change | $0 |
+| Cables | QSFP+ DAC | No change | $0 |
+
+**Total upgrade cost: ~$100-160**
+
+### Expected Improvement
+
+| Metric | ConnectX-3 | ConnectX-4 (GPUDirect) |
+|--------|------------|------------------------|
+| NCCL bandwidth | ~2 GB/s | ~4 GB/s |
+| Improvement | baseline | **2x faster!** |
+
+---
+
+## Quick Reference Commands
+
+### Find RDMA Device
+```bash
+ibv_devices
+ibstat
+```
+
+### RDMA Testing
+```bash
+# Bandwidth (VLAN 101 / Port 1)
+ib_write_bw --ib-dev=rocep130s0 --ib-port=1 --gid-index=2 10.0.1.2
+
+# Bandwidth (VLAN 100 / Port 2)
+ib_write_bw --ib-dev=rocep130s0 --ib-port=2 --gid-index=2 10.0.0.2
+
+# Latency
+ib_write_lat --ib-dev=rocep130s0 --ib-port=1 --gid-index=2 10.0.1.2
+```
+
+### NCCL Testing
+```bash
+# Single node (2 GPUs)
+./all_reduce_perf -b 8 -e 128M -f 2 -g 2
+
+# Multi-node (4 GPUs)
+mpirun -np 4 --host srv1:2,srv2:2 -x NCCL_DEBUG=INFO -x NCCL_IB_DISABLE=0 -x LD_LIBRARY_PATH ./all_reduce_perf -b 8 -e 128M -f 2 -g 1
+```
+
+### GPU Status
+```bash
+nvidia-smi
+nvcc --version
+```
+
+---
+
+## Lessons Learned
+
+1. **Version matching is critical** - CUDA, NCCL, and drivers must be compatible
+2. **GID index matters for RoCE** - Always use `--gid-index=2` on ConnectX-3
+3. **MPI needs passwordless SSH** - Set up SSH keys before multi-node tests
+4. **Separate networks = better performance** - GPU and storage traffic shouldn't compete
+5. **GPUDirect makes a big difference** - 2x improvement for ~$150 upgrade
+6. **Test before production** - NCCL-tests reveals issues before real training
+7. **Device names can change!** - Always run `ibv_devices` to find the correct RDMA device name
+8. **LLDP is your friend** - Install `lldpd` to identify switch port connections
+9. **Switches add latency** - Back-to-back: ~0.85 us, Through switches: ~3.5 us
+10. **VLANs organize traffic** - Use separate VLANs for each RDMA subnet
+
+---
+
+*Guide created during hands-on cluster setup session, January 2026*
+*Built with the assistance of Claude Code*
+    </script>
+
+    <script>
+        marked.setOptions({
+            highlight: function(code, lang) {
+                if (lang && hljs.getLanguage(lang)) {
+                    return hljs.highlight(code, { language: lang }).value;
+                }
+                return hljs.highlightAuto(code).value;
+            },
+            breaks: true,
+            gfm: true
+        });
+
+        function loadContent() {
+            const markdown = document.getElementById('markdown-content').textContent;
+            const html = marked.parse(markdown);
+            document.getElementById('content').innerHTML = html;
+            generateTOC();
+            document.querySelectorAll('pre code').forEach((block) => {
+                hljs.highlightElement(block);
+            });
+        }
+
+        function generateTOC() {
+            const content = document.getElementById('content');
+            const headings = content.querySelectorAll('h2, h3');
+            const toc = document.getElementById('toc');
+            toc.innerHTML = '';
+
+            let currentSection = null;
+            let currentSubsections = null;
+
+            headings.forEach((heading) => {
+                const id = heading.textContent.toLowerCase().replace(/[^\w\s-]/g, '').replace(/\s+/g, '-');
+                heading.id = id;
+
+                if (heading.tagName === 'H2') {
+                    // Create a new collapsible section for h2
+                    const section = document.createElement('li');
+                    section.className = 'toc-section';
+
+                    const header = document.createElement('div');
+                    header.className = 'toc-section-header';
+
+                    const toggle = document.createElement('span');
+                    toggle.className = 'toc-toggle';
+                    toggle.textContent = '▶';
+
+                    const title = document.createElement('span');
+                    title.className = 'toc-section-title';
+                    title.textContent = heading.textContent;
+                    title.dataset.target = id;
+
+                    header.appendChild(toggle);
+                    header.appendChild(title);
+
+                    // Click on header toggles expansion (exclusive - close others)
+                    header.addEventListener('click', (e) => {
+                        const wasExpanded = section.classList.contains('expanded');
+                        // Close ALL sections first
+                        document.querySelectorAll('.toc-section').forEach(s => {
+                            s.classList.remove('expanded');
+                        });
+                        // If it wasn't expanded, open this one
+                        if (!wasExpanded) {
+                            section.classList.add('expanded');
+                        }
+                    });
+
+                    // Click on title navigates
+                    title.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        // Close ALL sections first, then open this one
+                        document.querySelectorAll('.toc-section').forEach(s => {
+                            s.classList.remove('expanded');
+                        });
+                        section.classList.add('expanded');
+                        document.getElementById(id).scrollIntoView({ behavior: 'smooth' });
+                        if (window.innerWidth <= 900) {
+                            document.getElementById('sidebar').classList.remove('open');
+                        }
+                    });
+
+                    currentSubsections = document.createElement('ul');
+                    currentSubsections.className = 'toc-subsections';
+
+                    section.appendChild(header);
+                    section.appendChild(currentSubsections);
+                    toc.appendChild(section);
+
+                    currentSection = section;
+
+                } else if (heading.tagName === 'H3' && currentSubsections) {
+                    // Add h3 as subsection
+                    const li = document.createElement('li');
+                    li.className = 'toc-subsection';
+
+                    const a = document.createElement('a');
+                    a.href = '#' + id;
+                    a.textContent = heading.textContent;
+                    a.dataset.target = id;
+
+                    a.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        document.getElementById(id).scrollIntoView({ behavior: 'smooth' });
+                        if (window.innerWidth <= 900) {
+                            document.getElementById('sidebar').classList.remove('open');
+                        }
+                    });
+
+                    li.appendChild(a);
+                    currentSubsections.appendChild(li);
+                }
+            });
+        }
+
+        function toggleSidebar() {
+            document.getElementById('sidebar').classList.toggle('open');
+        }
+
+        function scrollToTop() {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        window.addEventListener('scroll', () => {
+            const btn = document.getElementById('back-to-top');
+            btn.classList.toggle('visible', window.pageYOffset > 300);
+
+            // Highlight current section based on scroll position
+            const headings = document.querySelectorAll('#content h2, #content h3');
+            let currentH2 = '';
+            let currentH3 = '';
+
+            headings.forEach((heading) => {
+                if (heading.getBoundingClientRect().top <= 100) {
+                    if (heading.tagName === 'H2') {
+                        currentH2 = heading.id;
+                        currentH3 = '';
+                    } else {
+                        currentH3 = heading.id;
+                    }
+                }
+            });
+
+            // Update active states (exclusive - only one section expanded)
+            document.querySelectorAll('.toc-section-header').forEach((header) => {
+                const title = header.querySelector('.toc-section-title');
+                const section = header.parentElement;
+                if (title && title.dataset.target === currentH2) {
+                    header.classList.add('active');
+                    // Only auto-expand if not already expanded (avoid closing user's choice)
+                    if (!section.classList.contains('expanded')) {
+                        // Close all others first
+                        document.querySelectorAll('.toc-section').forEach(s => {
+                            s.classList.remove('expanded');
+                        });
+                        section.classList.add('expanded');
+                    }
+                } else {
+                    header.classList.remove('active');
+                }
+            });
+
+            document.querySelectorAll('.toc-subsection a').forEach((a) => {
+                a.classList.toggle('active', a.dataset.target === currentH3);
+            });
+        });
+
+        document.addEventListener('DOMContentLoaded', loadContent);
+    </script>
+</body>
+</html>
