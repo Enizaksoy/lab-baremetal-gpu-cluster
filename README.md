@@ -8,7 +8,7 @@ A comprehensive LAB guide to setting up a multi-node GPU cluster with RDMA netwo
 
 > 📘 **New to this project?** Start with the [Step-by-Step LAB Guide](SETUP_GUIDE_STEP_BY_STEP.md) - it walks through every step with actual commands, outputs, and key learnings!
 >
-> 🖥️ **Prefer an interactive viewer?** Download and open [SETUP_GUIDE.html](SETUP_GUIDE.html) locally in your browser for a dark-themed viewer with collapsible navigation!
+> 🖥️ **Interactive Web Guide:** **[Click here to open the Setup Guide](https://enizaksoy.github.io/lab-baremetal-gpu-cluster/SETUP_GUIDE.html)** - dark-themed viewer with collapsible navigation, accessible from anywhere!
 
 ---
 
