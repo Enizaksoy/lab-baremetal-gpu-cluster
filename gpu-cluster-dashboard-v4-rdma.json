@@ -1,0 +1,108 @@
+{
+  "annotations": {"list": []},
+  "editable": true,
+  "graphTooltip": 1,
+  "panels": [
+    {"collapsed": false, "gridPos": {"h": 1, "w": 24, "x": 0, "y": 0}, "id": 100, "title": "GPU Metrics", "type": "row"},
+    {
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}, "custom": {"drawStyle": "line", "fillOpacity": 10, "lineWidth": 2, "showPoints": "never"}, "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "yellow", "value": 60}, {"color": "red", "value": 80}]}, "unit": "celsius"}, "overrides": []},
+      "gridPos": {"h": 7, "w": 12, "x": 0, "y": 1}, "id": 1,
+      "options": {"legend": {"calcs": ["last", "max"], "displayMode": "table", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi"}},
+      "targets": [{"expr": "gpu_temperature", "legendFormat": "{{instance}} GPU{{gpu}}"}],
+      "title": "GPU Temperature", "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}, "custom": {"drawStyle": "line", "fillOpacity": 10, "lineWidth": 2, "showPoints": "never"}, "max": 100, "min": 0, "unit": "percent"}, "overrides": []},
+      "gridPos": {"h": 7, "w": 12, "x": 12, "y": 1}, "id": 2,
+      "options": {"legend": {"calcs": ["last", "max"], "displayMode": "table", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi"}},
+      "targets": [{"expr": "gpu_utilization_percent", "legendFormat": "{{instance}} GPU{{gpu}}"}],
+      "title": "GPU Utilization", "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}, "custom": {"drawStyle": "line", "fillOpacity": 10, "lineWidth": 2, "showPoints": "never"}, "unit": "decmbytes"}, "overrides": []},
+      "gridPos": {"h": 7, "w": 12, "x": 0, "y": 8}, "id": 3,
+      "options": {"legend": {"calcs": ["last", "max"], "displayMode": "table", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi"}},
+      "targets": [{"expr": "gpu_memory_used_mb", "legendFormat": "{{instance}} GPU{{gpu}}"}],
+      "title": "GPU Memory Used (MB)", "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}, "custom": {"drawStyle": "line", "fillOpacity": 10, "lineWidth": 2, "showPoints": "never"}, "max": 300, "min": 0, "unit": "watt"}, "overrides": []},
+      "gridPos": {"h": 7, "w": 12, "x": 12, "y": 8}, "id": 4,
+      "options": {"legend": {"calcs": ["last", "max"], "displayMode": "table", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi"}},
+      "targets": [{"expr": "gpu_power_draw_watts", "legendFormat": "{{instance}} GPU{{gpu}}"}],
+      "title": "GPU Power Draw (Watts)", "type": "timeseries"
+    },
+    {"collapsed": false, "gridPos": {"h": 1, "w": 24, "x": 0, "y": 15}, "id": 101, "title": "System Metrics (CPU / RAM)", "type": "row"},
+    {
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}, "custom": {"drawStyle": "line", "fillOpacity": 10, "lineWidth": 2, "showPoints": "never"}, "max": 100, "min": 0, "unit": "percent"}, "overrides": []},
+      "gridPos": {"h": 6, "w": 12, "x": 0, "y": 16}, "id": 10,
+      "options": {"legend": {"calcs": ["last", "max"], "displayMode": "table", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi"}},
+      "targets": [{"expr": "100 - (avg by(instance) (irate(node_cpu_seconds_total{mode=\"idle\"}[30s])) * 100)", "legendFormat": "{{instance}}"}],
+      "title": "CPU Usage %", "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}, "custom": {"drawStyle": "line", "fillOpacity": 10, "lineWidth": 2, "showPoints": "never"}, "max": 100, "min": 0, "unit": "percent"}, "overrides": []},
+      "gridPos": {"h": 6, "w": 12, "x": 12, "y": 16}, "id": 11,
+      "options": {"legend": {"calcs": ["last", "max"], "displayMode": "table", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi"}},
+      "targets": [{"expr": "(1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100", "legendFormat": "{{instance}}"}],
+      "title": "RAM Usage %", "type": "timeseries"
+    },
+    {"collapsed": false, "gridPos": {"h": 1, "w": 24, "x": 0, "y": 22}, "id": 102, "title": "RDMA Network (40GbE - Kernel Bypass)", "type": "row"},
+    {
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}, "custom": {"drawStyle": "line", "fillOpacity": 10, "lineWidth": 2, "showPoints": "never"}, "unit": "binBps"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 23}, "id": 30,
+      "options": {"legend": {"calcs": ["last", "max"], "displayMode": "table", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi"}},
+      "targets": [
+        {"expr": "irate(rdma_port_rcv_bytes_total[30s])", "legendFormat": "{{instance}} port{{port}} RX"},
+        {"expr": "irate(rdma_port_xmit_bytes_total[30s])", "legendFormat": "{{instance}} port{{port}} TX"}
+      ],
+      "title": "RDMA Throughput (Bytes/sec)", "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}, "custom": {"drawStyle": "line", "fillOpacity": 10, "lineWidth": 2, "showPoints": "never"}, "unit": "pps"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 23}, "id": 31,
+      "options": {"legend": {"calcs": ["last", "max"], "displayMode": "table", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi"}},
+      "targets": [
+        {"expr": "irate(rdma_port_rcv_packets_total[30s])", "legendFormat": "{{instance}} port{{port}} RX"},
+        {"expr": "irate(rdma_port_xmit_packets_total[30s])", "legendFormat": "{{instance}} port{{port}} TX"}
+      ],
+      "title": "RDMA Packets/sec", "type": "timeseries"
+    },
+    {"collapsed": false, "gridPos": {"h": 1, "w": 24, "x": 0, "y": 31}, "id": 103, "title": "Current Status", "type": "row"},
+    {
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}, "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "yellow", "value": 60}, {"color": "red", "value": 80}]}, "unit": "celsius"}, "overrides": []},
+      "gridPos": {"h": 4, "w": 12, "x": 0, "y": 32}, "id": 5,
+      "options": {"colorMode": "value", "graphMode": "area", "orientation": "horizontal", "reduceOptions": {"calcs": ["lastNotNull"]}},
+      "targets": [{"expr": "gpu_temperature", "legendFormat": "{{instance}} GPU{{gpu}}"}],
+      "title": "Current GPU Temps", "type": "stat"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}, "max": 16384, "min": 0, "thresholds": {"mode": "percentage", "steps": [{"color": "green", "value": null}, {"color": "yellow", "value": 70}, {"color": "red", "value": 90}]}, "unit": "decmbytes"}, "overrides": []},
+      "gridPos": {"h": 4, "w": 12, "x": 12, "y": 32}, "id": 6,
+      "options": {"colorMode": "value", "graphMode": "area", "orientation": "horizontal", "reduceOptions": {"calcs": ["lastNotNull"]}},
+      "targets": [{"expr": "gpu_memory_used_mb", "legendFormat": "{{instance}} GPU{{gpu}}"}],
+      "title": "Current GPU Memory", "type": "stat"
+    }
+  ],
+  "refresh": "5s",
+  "schemaVersion": 38,
+  "tags": ["gpu", "nvidia", "v100", "rdma", "nccl", "cluster"],
+  "templating": {"list": []},
+  "time": {"from": "now-15m", "to": "now"},
+  "timezone": "browser",
+  "title": "GPU Cluster - V100 + RDMA Monitoring",
+  "uid": "gpu-cluster-rdma",
+  "version": 1,
+  "__inputs": [{"name": "DS_PROMETHEUS", "label": "Prometheus", "type": "datasource", "pluginId": "prometheus"}],
+  "__requires": [{"type": "grafana", "id": "grafana", "name": "Grafana", "version": "9.0.0"}, {"type": "datasource", "id": "prometheus", "name": "Prometheus", "version": "1.0.0"}]
+}

@@ -303,6 +303,7 @@ This LAB guide documents every step of building a bare-metal AI training cluster
 0. [Step 0: Identify RDMA Device Name](#step-0-identify-rdma-device-name)
 1. [Step 1: Configure RDMA Network (40G Ports)](#step-1-configure-rdma-network-40g-ports)
 1.5. [Step 1.5: Configure Leaf Switches (Optional)](#step-15-configure-leaf-switches-optional)
+1.6. [Step 1.6: Configure PFC for Lossless RoCE](#step-16-configure-pfc-for-lossless-roce)
 2. [Step 2: Test RDMA Performance](#step-2-test-rdma-performance)
 3. [Step 3: Compare TCP vs RDMA](#step-3-compare-tcp-vs-rdma)
 4. [Step 4: Install NVIDIA Drivers](#step-4-install-nvidia-drivers)
@@ -576,6 +577,259 @@ show lldp neighbors
 > **Back-to-Back vs Switched:** Direct connections give lowest latency (~0.85 us) but limit you to 2 nodes. Switches add ~2-3 us latency but enable scaling to many nodes. For production clusters, switches are essential.
 
 > **VLAN Separation:** Using separate VLANs (100 and 101) for each RDMA network allows for traffic isolation and easier troubleshooting.
+
+---
+
+## Step 1.6: Configure PFC for Lossless RoCE
+
+### Goal
+Enable Priority Flow Control (PFC) to achieve lossless Ethernet for RoCE/RDMA traffic. Without PFC, large RDMA transfers can experience packet drops causing "protection errors."
+
+### Check Current State (Before Configuration)
+
+First, verify PFC and DSCP mapping are not configured:
+
+**On Servers:**
+```bash
+# Check PFC status
+dcb pfc show dev ens6
+
+# Check DSCP to priority mapping
+dcb app show dev ens6
+```
+
+**On Switch (NX-OS):**
+```
+show interface Eth1/27 priority-flow-control
+```
+
+### Actual Output (Before Configuration)
+
+**gpuserver1 and gpuserver2:**
+```
+--- PFC Status ---
+pfc-cap 8 macsec-bypass off delay 0
+prio-pfc 0:off 1:off 2:off 3:off 4:off 5:off 6:off 7:off
+
+--- DSCP/Priority Mapping ---
+(empty = no mapping configured)
+
+--- Pause Frame Counters ---
+     rx_pause: 0
+     tx_pause: 0
+```
+
+**Leaf 1 Switch:**
+```
+Port               Mode Oper(VL bmap)  RxPPP      TxPPP
+Ethernet1/27       Auto Off           0          0
+Ethernet1/28       Auto Off           0          0
+```
+
+### The Problem
+
+Without configuration:
+- Server PFC: All priorities OFF - no PAUSE frames sent/honored
+- DSCP Mapping: Empty - NCCL's DSCP 26 packets go to default queue
+- Switch PFC: Mode Auto, Oper Off - switch won't pause traffic
+
+Result: Packets DROP during congestion causing RDMA errors.
+
+### Why PFC is Required
+
+Without PFC, when switch buffers fill during large RDMA transfers, packets are dropped causing RDMA protection errors. With PFC, the switch sends PAUSE frames to the sender, allowing buffers to drain before resuming.
+
+### Traffic Flow: DSCP to Priority to PFC
+
+1. **Application (NCCL)** - Marks packets with DSCP 26 (AF31)
+2. **Linux OS** - Maps DSCP 26 to Priority 3 (802.1p CoS)
+3. **NIC (ConnectX)** - PFC enabled on Priority 3, sends PAUSE frames when buffer fills
+4. **Switch (Nexus)** - PFC enabled on Priority 3, honors and sends PAUSE frames
+
+### Priority Assignment (Best Practice)
+
+| Traffic Type | DSCP | Priority (CoS) | PFC Enabled |
+|--------------|------|----------------|-------------|
+| GPU/NCCL (RoCE) | 26 (AF31) | 3 | Yes |
+| Storage/NVMe-oF (RoCE) | 24 (CS3) | 4 | Yes |
+| Management/Default | 0 | 0 | No |
+
+> **Why separate priorities?** GPU traffic is bursty and latency-sensitive. Storage traffic is continuous and throughput-sensitive. Separating them prevents storage congestion from pausing GPU sync operations.
+
+### Part A: Switch Configuration (Nexus 9332)
+
+```
+! Enable QoS globally
+feature qos
+
+! Create class-map to match RoCE traffic (DSCP 26)
+class-map type qos match-all ROCE_TRAFFIC
+  match dscp 26
+
+! Create policy-map to set CoS priority
+policy-map type qos ROCE_POLICY
+  class ROCE_TRAFFIC
+    set qos-group 3
+
+! Create network-qos policy for PFC
+policy-map type network-qos ROCE_NET_POLICY
+  class type network-qos class-default
+    mtu 9216
+  class type network-qos c-out-8q-q3
+    pause pfc-cos 3
+    mtu 9216
+
+! Apply policies globally
+system qos
+  service-policy type qos input ROCE_POLICY
+  service-policy type network-qos ROCE_NET_POLICY
+
+! Enable PFC on GPU server interfaces
+interface Ethernet1/27
+  priority-flow-control mode on
+
+interface Ethernet1/28
+  priority-flow-control mode on
+```
+
+### Part B: Server Configuration (Ubuntu + ConnectX-3)
+
+#### Using Linux DCB Tools (Inbox Driver - Recommended)
+
+For ConnectX-3 with inbox mlx4 driver, use the `dcb` tool:
+
+```bash
+# 1. Enable PFC on Priority 3 for both interfaces
+sudo dcb pfc set dev ens6 prio-pfc 0:off 1:off 2:off 3:on 4:off 5:off 6:off 7:off
+sudo dcb pfc set dev ens6d1 prio-pfc 0:off 1:off 2:off 3:on 4:off 5:off 6:off 7:off
+
+# 2. Map DSCP 26 (AF31) to Priority 3 (may fail on inbox mlx4 - OK if switch does it)
+sudo dcb app add dev ens6 dscp-prio 26:3
+sudo dcb app add dev ens6d1 dscp-prio 26:3
+
+# 3. Verify configuration
+dcb pfc show dev ens6
+dcb app show dev ens6
+```
+
+#### Actual Output (After Configuration)
+
+```
+$ dcb pfc show dev ens6
+pfc-cap 8 macsec-bypass off delay 0
+prio-pfc 0:off 1:off 2:off 3:on 4:off 5:off 6:off 7:off
+
+$ dcb app show dev ens6
+dscp-prio AF31:3
+```
+
+> **Note on DSCP Mapping:** The `dcb app add` command may return "Error 239" with inbox mlx4 driver. This is OK - the switch can do DSCP-to-Priority mapping instead. PFC (`dcb pfc set`) works reliably.
+
+#### Make Configuration Persistent (Systemd Service)
+
+Create a startup service so PFC survives reboot:
+
+```bash
+# Create the configuration script
+sudo tee /usr/local/bin/configure-roce-qos.sh << 'EOF'
+#!/bin/bash
+# Configure PFC and DSCP mapping for RoCE/RDMA
+
+# Wait for interfaces
+sleep 5
+
+# ens6 (VLAN 101)
+dcb app add dev ens6 dscp-prio 26:3 2>/dev/null
+dcb pfc set dev ens6 prio-pfc 0:off 1:off 2:off 3:on 4:off 5:off 6:off 7:off
+
+# ens6d1 (VLAN 100)
+dcb app add dev ens6d1 dscp-prio 26:3 2>/dev/null
+dcb pfc set dev ens6d1 prio-pfc 0:off 1:off 2:off 3:on 4:off 5:off 6:off 7:off
+
+# Enable ECN
+sysctl -w net.ipv4.tcp_ecn=1
+
+logger "RoCE QoS configured: PFC on priority 3, DSCP 26 mapped"
+EOF
+
+sudo chmod +x /usr/local/bin/configure-roce-qos.sh
+
+# Create systemd service
+sudo tee /etc/systemd/system/roce-qos.service << 'EOF'
+[Unit]
+Description=Configure RoCE QoS (PFC + DSCP mapping)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/configure-roce-qos.sh
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+# Enable the service
+sudo systemctl daemon-reload
+sudo systemctl enable roce-qos.service
+```
+
+#### Alternative: Using mlnx_qos (Requires MLNX_OFED)
+
+If you have MLNX_OFED installed (ConnectX-4 or newer):
+
+```bash
+mlnx_qos -i ens6 --pfc 0,0,0,1,0,0,0,0
+mlnx_qos -i ens6
+```
+
+> **Note:** MLNX_OFED 5.x does NOT support ConnectX-3. Use inbox driver with `dcb` tool instead.
+
+### Part C: NCCL Environment Variables
+
+NCCL uses DSCP 26 by default, but you can customize:
+
+```bash
+# Use default RoCE traffic class (DSCP 26)
+export NCCL_IB_TC=106
+
+# Or explicitly set Service Level (maps to priority)
+export NCCL_IB_SL=3
+
+# Required for RoCE
+export NCCL_IB_GID_INDEX=2
+export NCCL_IB_DISABLE=0
+```
+
+### Verification Commands
+
+#### On Switches:
+
+```
+show interface Ethernet1/27 priority-flow-control
+show interface Ethernet1/27 counters detailed | grep -i pfc
+show queuing interface Ethernet1/27
+```
+
+#### On Servers:
+
+```bash
+# Check PFC counters
+ethtool -S ens6 | grep -i pfc
+
+# Check DCBX status
+lldptool -t -i ens6 -V PFC
+
+# Monitor PFC pause frames
+watch -n 1 'ethtool -S ens6 | grep -E "(pause|pfc)"'
+```
+
+### Key Learning
+
+> **PFC is End-to-End:** Every device in the path (NIC to Switch to NIC) must have PFC enabled on the same priority. If any device doesn't honor PFC, packets can still be dropped.
+
+> **DCBX Auto-Negotiation:** With MLNX_OFED and proper switch config, DCBX can auto-negotiate PFC settings. With inbox drivers, manual configuration is usually required.
 
 ---
 

@@ -1,0 +1,448 @@
+<mxfile host="Electron" agent="Claude AI" version="29.3.0">
+  <diagram name="AI Cluster Full Architecture" id="ai-cluster-full-arch">
+    <mxGraphModel dx="1800" dy="1200" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="2000" pageHeight="1400" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <!-- Title -->
+        <mxCell id="title" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=24;fontStyle=1" value="&lt;b&gt;AI Training Cluster - Complete Architecture&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:14px;font-weight:normal&quot;&gt;Compute RDMA (40G) + Storage RDMA (10G) | 4x NVIDIA V100 | NVMe-oF over RoCEv2&lt;/font&gt;" vertex="1">
+          <mxGeometry height="60" width="700" x="650" y="10" as="geometry" />
+        </mxCell>
+
+        <!-- ==================== NETWORK LAYER ==================== -->
+        <mxCell id="switch-box" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;dashed=1;opacity=50;" value="" vertex="1">
+          <mxGeometry height="120" width="1800" x="100" y="80" as="geometry" />
+        </mxCell>
+        <mxCell id="switch-label" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;fontSize=12;fontColor=#7F6000;fontStyle=1" value="NETWORK LAYER - Cisco Nexus N9K-C9332PQ (192.168.50.229)" vertex="1">
+          <mxGeometry height="20" width="400" x="800" y="85" as="geometry" />
+        </mxCell>
+
+        <!-- Nexus Switch -->
+        <mxCell id="nexus" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontColor=#000000;fontSize=11;" value="&lt;b&gt;Cisco Nexus 9332PQ&lt;/b&gt;&lt;br&gt;32x 40G QSFP+ | PFC + ECN + WRED&lt;br&gt;MTU 9216 | Lossless RoCEv2 Fabric" vertex="1">
+          <mxGeometry height="60" width="220" x="890" y="110" as="geometry" />
+        </mxCell>
+
+        <!-- Switch Ports - ESXi SR-IOV -->
+        <mxCell id="port-esxi-label" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;fontSize=8;fontColor=#6c8ebf;" value="ESXi SR-IOV (40G)" vertex="1">
+          <mxGeometry height="15" width="80" x="160" y="95" as="geometry" />
+        </mxCell>
+        <mxCell id="eth1-1-1" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=8;" value="&lt;b&gt;Eth1/1/1&lt;/b&gt;&lt;br&gt;40G" vertex="1">
+          <mxGeometry height="30" width="55" x="120" y="115" as="geometry" />
+        </mxCell>
+        <mxCell id="eth1-1-2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=8;" value="&lt;b&gt;Eth1/1/2&lt;/b&gt;&lt;br&gt;40G" vertex="1">
+          <mxGeometry height="30" width="55" x="180" y="115" as="geometry" />
+        </mxCell>
+        <mxCell id="eth1-2-1" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=8;" value="&lt;b&gt;Eth1/2/1&lt;/b&gt;&lt;br&gt;40G" vertex="1">
+          <mxGeometry height="30" width="55" x="280" y="115" as="geometry" />
+        </mxCell>
+        <mxCell id="eth1-2-2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=8;" value="&lt;b&gt;Eth1/2/2&lt;/b&gt;&lt;br&gt;40G" vertex="1">
+          <mxGeometry height="30" width="55" x="340" y="115" as="geometry" />
+        </mxCell>
+
+        <!-- Switch Ports - GPU Compute -->
+        <mxCell id="port-compute-label" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;fontSize=8;fontColor=#b85450;fontStyle=1" value="GPU COMPUTE (40G)" vertex="1">
+          <mxGeometry height="15" width="100" x="520" y="95" as="geometry" />
+        </mxCell>
+        <mxCell id="eth1-3-1" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=7;" value="&lt;b&gt;Eth1/3/1&lt;/b&gt;&lt;br&gt;GPU1-P0" vertex="1">
+          <mxGeometry height="35" width="50" x="480" y="112" as="geometry" />
+        </mxCell>
+        <mxCell id="eth1-3-2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=7;" value="&lt;b&gt;Eth1/3/2&lt;/b&gt;&lt;br&gt;GPU1-P1" vertex="1">
+          <mxGeometry height="35" width="50" x="535" y="112" as="geometry" />
+        </mxCell>
+        <mxCell id="eth1-3-3" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=7;" value="&lt;b&gt;Eth1/3/3&lt;/b&gt;&lt;br&gt;GPU2-P0" vertex="1">
+          <mxGeometry height="35" width="50" x="590" y="112" as="geometry" />
+        </mxCell>
+        <mxCell id="eth1-3-4" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=7;" value="&lt;b&gt;Eth1/3/4&lt;/b&gt;&lt;br&gt;GPU2-P1" vertex="1">
+          <mxGeometry height="35" width="50" x="645" y="112" as="geometry" />
+        </mxCell>
+
+        <!-- Switch Ports - GPU Storage -->
+        <mxCell id="port-gpustor-label" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;fontSize=8;fontColor=#82b366;fontStyle=1" value="GPU STORAGE (40G)" vertex="1">
+          <mxGeometry height="15" width="100" x="1220" y="95" as="geometry" />
+        </mxCell>
+        <mxCell id="eth1-4-1" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=7;" value="&lt;b&gt;Eth1/4/1&lt;/b&gt;&lt;br&gt;GPU1-Stor" vertex="1">
+          <mxGeometry height="35" width="55" x="1180" y="112" as="geometry" />
+        </mxCell>
+        <mxCell id="eth1-4-2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=7;" value="&lt;b&gt;Eth1/4/2&lt;/b&gt;&lt;br&gt;GPU2-Stor" vertex="1">
+          <mxGeometry height="35" width="55" x="1240" y="112" as="geometry" />
+        </mxCell>
+
+        <!-- Switch Ports - P920 Storage (10G breakout) -->
+        <mxCell id="port-p920stor-label" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;fontSize=8;fontColor=#9673a6;fontStyle=1" value="P920 STORAGE (10G)" vertex="1">
+          <mxGeometry height="15" width="110" x="1520" y="95" as="geometry" />
+        </mxCell>
+        <mxCell id="eth1-5-1" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=7;" value="&lt;b&gt;Eth1/5/1&lt;/b&gt;&lt;br&gt;10G brk" vertex="1">
+          <mxGeometry height="35" width="50" x="1480" y="112" as="geometry" />
+        </mxCell>
+        <mxCell id="eth1-5-2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=7;" value="&lt;b&gt;Eth1/5/2&lt;/b&gt;&lt;br&gt;10G brk" vertex="1">
+          <mxGeometry height="35" width="50" x="1535" y="112" as="geometry" />
+        </mxCell>
+        <mxCell id="eth1-5-3" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=7;" value="&lt;b&gt;Eth1/5/3&lt;/b&gt;&lt;br&gt;10G brk" vertex="1">
+          <mxGeometry height="35" width="50" x="1590" y="112" as="geometry" />
+        </mxCell>
+        <mxCell id="eth1-5-4" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=7;" value="&lt;b&gt;Eth1/5/4&lt;/b&gt;&lt;br&gt;10G brk" vertex="1">
+          <mxGeometry height="35" width="50" x="1645" y="112" as="geometry" />
+        </mxCell>
+
+        <!-- ==================== COMPUTE TIER ==================== -->
+        <mxCell id="compute-tier-box" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;dashed=1;opacity=30;" value="" vertex="1">
+          <mxGeometry height="420" width="800" x="100" y="220" as="geometry" />
+        </mxCell>
+        <mxCell id="compute-tier-label" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;fontSize=14;fontColor=#990000;fontStyle=1" value="COMPUTE TIER - GPU Servers (Bare Metal Ubuntu 22.04)" vertex="1">
+          <mxGeometry height="25" width="400" x="110" y="225" as="geometry" />
+        </mxCell>
+
+        <!-- GPU Server 1 -->
+        <mxCell id="gpu1-box" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;dashed=1;opacity=60;" value="" vertex="1">
+          <mxGeometry height="360" width="360" x="120" y="260" as="geometry" />
+        </mxCell>
+        <mxCell id="gpu1-label" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;fontSize=13;fontColor=#990000;fontStyle=1" value="&lt;b&gt;GPU SERVER 1&lt;/b&gt;" vertex="1">
+          <mxGeometry height="20" width="120" x="240" y="265" as="geometry" />
+        </mxCell>
+        <mxCell id="gpu1-specs" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#b85450;fontSize=8;align=left;spacingLeft=5;" value="&lt;b&gt;Hardware:&lt;/b&gt;&lt;br&gt;• 2x Xeon 36-core @ 2.3GHz&lt;br&gt;• 64 GB DDR4 RAM&lt;br&gt;• 256 GB NVMe Boot&lt;br&gt;• Dual PSU" vertex="1">
+          <mxGeometry height="70" width="130" x="130" y="290" as="geometry" />
+        </mxCell>
+
+        <!-- GPU1 - V100 GPUs -->
+        <mxCell id="gpu1-v100-0" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#76b900;strokeColor=#5a8c00;fontSize=9;fontColor=#ffffff;" value="&lt;b&gt;NVIDIA V100&lt;/b&gt;&lt;br&gt;32GB HBM2&lt;br&gt;&lt;b&gt;GPU 0&lt;/b&gt;" vertex="1">
+          <mxGeometry height="55" width="100" x="280" y="290" as="geometry" />
+        </mxCell>
+        <mxCell id="gpu1-v100-1" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#76b900;strokeColor=#5a8c00;fontSize=9;fontColor=#ffffff;" value="&lt;b&gt;NVIDIA V100&lt;/b&gt;&lt;br&gt;32GB HBM2&lt;br&gt;&lt;b&gt;GPU 1&lt;/b&gt;" vertex="1">
+          <mxGeometry height="55" width="100" x="280" y="355" as="geometry" />
+        </mxCell>
+
+        <!-- GPU1 - NICs -->
+        <mxCell id="gpu1-nic-box" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e8f5e9;strokeColor=#82b366;dashed=1;" value="" vertex="1">
+          <mxGeometry height="170" width="340" x="130" y="430" as="geometry" />
+        </mxCell>
+        <mxCell id="gpu1-nic-label" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;fontSize=9;fontColor=#2e7d32;fontStyle=1" value="NETWORK INTERFACES" vertex="1">
+          <mxGeometry height="15" width="130" x="230" y="435" as="geometry" />
+        </mxCell>
+
+        <mxCell id="gpu1-cx3" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=8;" value="&lt;b&gt;ConnectX-3 Pro&lt;/b&gt;&lt;br&gt;COMPUTE NIC (2x 40G)&lt;br&gt;&lt;font color=&quot;#990000&quot;&gt;NCCL / GPU RDMA&lt;/font&gt;" vertex="1">
+          <mxGeometry height="55" width="150" x="145" y="455" as="geometry" />
+        </mxCell>
+        <mxCell id="gpu1-cx3-p0" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=7;" value="Port 0 → Eth1/3/1&lt;br&gt;10.0.1.1/24" vertex="1">
+          <mxGeometry height="30" width="70" x="145" y="515" as="geometry" />
+        </mxCell>
+        <mxCell id="gpu1-cx3-p1" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=7;" value="Port 1 → Eth1/3/2&lt;br&gt;10.0.1.2/24" vertex="1">
+          <mxGeometry height="30" width="70" x="220" y="515" as="geometry" />
+        </mxCell>
+
+        <mxCell id="gpu1-cx4" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=8;" value="&lt;b&gt;ConnectX-4 Lx&lt;/b&gt;&lt;br&gt;STORAGE NIC (40G)&lt;br&gt;&lt;font color=&quot;#2e7d32&quot;&gt;NVMe-oF Client&lt;/font&gt;" vertex="1">
+          <mxGeometry height="55" width="150" x="305" y="455" as="geometry" />
+        </mxCell>
+        <mxCell id="gpu1-cx4-p0" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=7;" value="Port 0 → Eth1/4/1&lt;br&gt;10.0.2.1/24" vertex="1">
+          <mxGeometry height="30" width="70" x="345" y="515" as="geometry" />
+        </mxCell>
+        <mxCell id="gpu1-sw" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=7;" value="&lt;b&gt;PyTorch + NCCL&lt;/b&gt;&lt;br&gt;Horovod | UCX" vertex="1">
+          <mxGeometry height="35" width="80" x="390" y="290" as="geometry" />
+        </mxCell>
+        <mxCell id="gpu1-cuda" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#76b900;strokeColor=#5a8c00;fontSize=7;fontColor=#ffffff;" value="&lt;b&gt;CUDA 12.x&lt;/b&gt;&lt;br&gt;cuDNN 8" vertex="1">
+          <mxGeometry height="35" width="80" x="390" y="330" as="geometry" />
+        </mxCell>
+        <mxCell id="gpu1-nvmeof" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=7;" value="&lt;b&gt;NVMe-oF&lt;/b&gt;&lt;br&gt;Initiator" vertex="1">
+          <mxGeometry height="35" width="80" x="390" y="370" as="geometry" />
+        </mxCell>
+
+        <!-- GPU Server 2 -->
+        <mxCell id="gpu2-box" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;dashed=1;opacity=60;" value="" vertex="1">
+          <mxGeometry height="360" width="360" x="520" y="260" as="geometry" />
+        </mxCell>
+        <mxCell id="gpu2-label" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;fontSize=13;fontColor=#990000;fontStyle=1" value="&lt;b&gt;GPU SERVER 2&lt;/b&gt;" vertex="1">
+          <mxGeometry height="20" width="120" x="640" y="265" as="geometry" />
+        </mxCell>
+        <mxCell id="gpu2-specs" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#b85450;fontSize=8;align=left;spacingLeft=5;" value="&lt;b&gt;Hardware:&lt;/b&gt;&lt;br&gt;• 2x Xeon 36-core @ 2.3GHz&lt;br&gt;• 64 GB DDR4 RAM&lt;br&gt;• 256 GB NVMe Boot&lt;br&gt;• Dual PSU" vertex="1">
+          <mxGeometry height="70" width="130" x="530" y="290" as="geometry" />
+        </mxCell>
+
+        <!-- GPU2 - V100 GPUs -->
+        <mxCell id="gpu2-v100-0" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#76b900;strokeColor=#5a8c00;fontSize=9;fontColor=#ffffff;" value="&lt;b&gt;NVIDIA V100&lt;/b&gt;&lt;br&gt;32GB HBM2&lt;br&gt;&lt;b&gt;GPU 0&lt;/b&gt;" vertex="1">
+          <mxGeometry height="55" width="100" x="680" y="290" as="geometry" />
+        </mxCell>
+        <mxCell id="gpu2-v100-1" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#76b900;strokeColor=#5a8c00;fontSize=9;fontColor=#ffffff;" value="&lt;b&gt;NVIDIA V100&lt;/b&gt;&lt;br&gt;32GB HBM2&lt;br&gt;&lt;b&gt;GPU 1&lt;/b&gt;" vertex="1">
+          <mxGeometry height="55" width="100" x="680" y="355" as="geometry" />
+        </mxCell>
+
+        <!-- GPU2 - NICs -->
+        <mxCell id="gpu2-nic-box" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e8f5e9;strokeColor=#82b366;dashed=1;" value="" vertex="1">
+          <mxGeometry height="170" width="340" x="530" y="430" as="geometry" />
+        </mxCell>
+        <mxCell id="gpu2-nic-label" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;fontSize=9;fontColor=#2e7d32;fontStyle=1" value="NETWORK INTERFACES" vertex="1">
+          <mxGeometry height="15" width="130" x="630" y="435" as="geometry" />
+        </mxCell>
+
+        <mxCell id="gpu2-cx3" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=8;" value="&lt;b&gt;ConnectX-3 Pro&lt;/b&gt;&lt;br&gt;COMPUTE NIC (2x 40G)&lt;br&gt;&lt;font color=&quot;#990000&quot;&gt;NCCL / GPU RDMA&lt;/font&gt;" vertex="1">
+          <mxGeometry height="55" width="150" x="545" y="455" as="geometry" />
+        </mxCell>
+        <mxCell id="gpu2-cx3-p0" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=7;" value="Port 0 → Eth1/3/3&lt;br&gt;10.0.1.3/24" vertex="1">
+          <mxGeometry height="30" width="70" x="545" y="515" as="geometry" />
+        </mxCell>
+        <mxCell id="gpu2-cx3-p1" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=7;" value="Port 1 → Eth1/3/4&lt;br&gt;10.0.1.4/24" vertex="1">
+          <mxGeometry height="30" width="70" x="620" y="515" as="geometry" />
+        </mxCell>
+
+        <mxCell id="gpu2-cx4" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=8;" value="&lt;b&gt;ConnectX-4 Lx&lt;/b&gt;&lt;br&gt;STORAGE NIC (40G)&lt;br&gt;&lt;font color=&quot;#2e7d32&quot;&gt;NVMe-oF Client&lt;/font&gt;" vertex="1">
+          <mxGeometry height="55" width="150" x="705" y="455" as="geometry" />
+        </mxCell>
+        <mxCell id="gpu2-cx4-p0" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=7;" value="Port 0 → Eth1/4/2&lt;br&gt;10.0.2.2/24" vertex="1">
+          <mxGeometry height="30" width="70" x="745" y="515" as="geometry" />
+        </mxCell>
+        <mxCell id="gpu2-sw" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=7;" value="&lt;b&gt;PyTorch + NCCL&lt;/b&gt;&lt;br&gt;Horovod | UCX" vertex="1">
+          <mxGeometry height="35" width="80" x="790" y="290" as="geometry" />
+        </mxCell>
+        <mxCell id="gpu2-cuda" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#76b900;strokeColor=#5a8c00;fontSize=7;fontColor=#ffffff;" value="&lt;b&gt;CUDA 12.x&lt;/b&gt;&lt;br&gt;cuDNN 8" vertex="1">
+          <mxGeometry height="35" width="80" x="790" y="330" as="geometry" />
+        </mxCell>
+        <mxCell id="gpu2-nvmeof" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=7;" value="&lt;b&gt;NVMe-oF&lt;/b&gt;&lt;br&gt;Initiator" vertex="1">
+          <mxGeometry height="35" width="80" x="790" y="370" as="geometry" />
+        </mxCell>
+
+        <!-- GPU-to-GPU RDMA Arrow -->
+        <mxCell id="gpu-rdma-arrow" edge="1" parent="1" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#76b900;strokeWidth=4;dashed=1;dashPattern=8 4;endArrow=classic;startArrow=classic;" source="gpu1-box" target="gpu2-box">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="500" y="440" as="sourcePoint" />
+            <mxPoint x="520" y="440" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="gpu-rdma-label" parent="1" style="text;html=1;strokeColor=none;fillColor=#ffffff;align=center;fontSize=9;fontColor=#2e7d32;fontStyle=1" value="COMPUTE RDMA&lt;br&gt;4x 40G = 160 Gbps&lt;br&gt;NCCL AllReduce" vertex="1">
+          <mxGeometry height="45" width="90" x="455" y="395" as="geometry" />
+        </mxCell>
+
+        <!-- ==================== STORAGE TIER ==================== -->
+        <mxCell id="storage-tier-box" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;dashed=1;opacity=30;" value="" vertex="1">
+          <mxGeometry height="420" width="800" x="1100" y="220" as="geometry" />
+        </mxCell>
+        <mxCell id="storage-tier-label" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;fontSize=14;fontColor=#7c4dff;fontStyle=1" value="STORAGE TIER - Lenovo P920 ESXi Hosts (NVMe-oF Targets)" vertex="1">
+          <mxGeometry height="25" width="400" x="1110" y="225" as="geometry" />
+        </mxCell>
+
+        <!-- P920 Host 1 -->
+        <mxCell id="p920-1-box" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;dashed=1;opacity=60;" value="" vertex="1">
+          <mxGeometry height="360" width="360" x="1120" y="260" as="geometry" />
+        </mxCell>
+        <mxCell id="p920-1-label" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;fontSize=13;fontColor=#7c4dff;fontStyle=1" value="&lt;b&gt;P920 HOST 1&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:9px;font-weight:normal&quot;&gt;192.168.50.152 | ESXi 7.0&lt;/font&gt;" vertex="1">
+          <mxGeometry height="35" width="140" x="1225" y="265" as="geometry" />
+        </mxCell>
+
+        <!-- P920-1 Storage -->
+        <mxCell id="p920-1-storage-box" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff3e0;strokeColor=#ff9800;dashed=1;" value="" vertex="1">
+          <mxGeometry height="145" width="330" x="1135" y="305" as="geometry" />
+        </mxCell>
+        <mxCell id="p920-1-storage-label" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;fontSize=9;fontColor=#e65100;fontStyle=1" value="NVMe STORAGE (Local)" vertex="1">
+          <mxGeometry height="15" width="120" x="1235" y="310" as="geometry" />
+        </mxCell>
+        <mxCell id="p920-1-nvme1" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff3e0;strokeColor=#ff9800;fontSize=8;" value="&lt;b&gt;4TB_NVME_7500&lt;/b&gt;&lt;br&gt;FIKWOT FX991&lt;br&gt;7,500 MB/s | 1.77TB Free" vertex="1">
+          <mxGeometry height="50" width="150" x="1145" y="330" as="geometry" />
+        </mxCell>
+        <mxCell id="p920-1-nvme2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff3e0;strokeColor=#ff9800;fontSize=8;" value="&lt;b&gt;2TB_NVME_3000&lt;/b&gt;&lt;br&gt;Gen3 NVMe&lt;br&gt;3,000 MB/s | 1.41TB Free" vertex="1">
+          <mxGeometry height="50" width="150" x="1300" y="330" as="geometry" />
+        </mxCell>
+        <mxCell id="p920-1-nvme3" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff3e0;strokeColor=#ff9800;fontSize=8;" value="&lt;b&gt;1TB_SSD&lt;/b&gt;&lt;br&gt;SATA SSD&lt;br&gt;818 GB Free" vertex="1">
+          <mxGeometry height="45" width="100" x="1145" y="390" as="geometry" />
+        </mxCell>
+        <mxCell id="p920-1-boot" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffccbc;strokeColor=#ff5722;fontSize=7;" value="Boot: 128GB NVMe" vertex="1">
+          <mxGeometry height="25" width="90" x="1255" y="400" as="geometry" />
+        </mxCell>
+
+        <!-- P920-1 NIC -->
+        <mxCell id="p920-1-nic-box" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e8f5e9;strokeColor=#82b366;dashed=1;" value="" vertex="1">
+          <mxGeometry height="90" width="330" x="1135" y="460" as="geometry" />
+        </mxCell>
+        <mxCell id="p920-1-nic" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=8;" value="&lt;b&gt;25G NIC @ 10G&lt;/b&gt;&lt;br&gt;(10G breakout cable)&lt;br&gt;&lt;font color=&quot;#7c4dff&quot;&gt;NVMe-oF Target&lt;/font&gt;" vertex="1">
+          <mxGeometry height="50" width="140" x="1145" y="470" as="geometry" />
+        </mxCell>
+        <mxCell id="p920-1-nic-p0" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=7;" value="Port 0 → Eth1/5/1&lt;br&gt;10.0.2.10/24" vertex="1">
+          <mxGeometry height="30" width="75" x="1145" y="525" as="geometry" />
+        </mxCell>
+        <mxCell id="p920-1-nic-p1" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=7;" value="Port 1 → Eth1/5/2&lt;br&gt;10.0.2.11/24" vertex="1">
+          <mxGeometry height="30" width="75" x="1225" y="525" as="geometry" />
+        </mxCell>
+        <mxCell id="p920-1-vm" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#bbdefb;strokeColor=#1976d2;fontSize=7;" value="&lt;b&gt;Storage VM&lt;/b&gt;&lt;br&gt;Ubuntu 22.04&lt;br&gt;nvmet target" vertex="1">
+          <mxGeometry height="50" width="100" x="1350" y="475" as="geometry" />
+        </mxCell>
+
+        <!-- P920 Host 2 -->
+        <mxCell id="p920-2-box" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;dashed=1;opacity=60;" value="" vertex="1">
+          <mxGeometry height="360" width="360" x="1520" y="260" as="geometry" />
+        </mxCell>
+        <mxCell id="p920-2-label" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;fontSize=13;fontColor=#7c4dff;fontStyle=1" value="&lt;b&gt;P920 HOST 2&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:9px;font-weight:normal&quot;&gt;192.168.50.32 | ESXi 7.0&lt;/font&gt;" vertex="1">
+          <mxGeometry height="35" width="140" x="1625" y="265" as="geometry" />
+        </mxCell>
+
+        <!-- P920-2 Storage -->
+        <mxCell id="p920-2-storage-box" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff3e0;strokeColor=#ff9800;dashed=1;" value="" vertex="1">
+          <mxGeometry height="145" width="330" x="1535" y="305" as="geometry" />
+        </mxCell>
+        <mxCell id="p920-2-storage-label" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;fontSize=9;fontColor=#e65100;fontStyle=1" value="NVMe STORAGE (Local)" vertex="1">
+          <mxGeometry height="15" width="120" x="1635" y="310" as="geometry" />
+        </mxCell>
+        <mxCell id="p920-2-nvme1" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff3e0;strokeColor=#ff9800;fontSize=8;" value="&lt;b&gt;2TB_NVME_7300&lt;/b&gt;&lt;br&gt;Gen4 NVMe&lt;br&gt;7,300 MB/s | 0.51TB Free" vertex="1">
+          <mxGeometry height="50" width="150" x="1545" y="330" as="geometry" />
+        </mxCell>
+        <mxCell id="p920-2-nvme2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff3e0;strokeColor=#ff9800;fontSize=8;" value="&lt;b&gt;2TB_NVME_3500&lt;/b&gt;&lt;br&gt;Gen3 NVMe&lt;br&gt;3,500 MB/s | 1.06TB Free" vertex="1">
+          <mxGeometry height="50" width="150" x="1700" y="330" as="geometry" />
+        </mxCell>
+        <mxCell id="p920-2-boot" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffccbc;strokeColor=#ff5722;fontSize=7;" value="Boot: 512GB NVMe" vertex="1">
+          <mxGeometry height="25" width="90" x="1600" y="400" as="geometry" />
+        </mxCell>
+
+        <!-- P920-2 NIC -->
+        <mxCell id="p920-2-nic-box" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e8f5e9;strokeColor=#82b366;dashed=1;" value="" vertex="1">
+          <mxGeometry height="90" width="330" x="1535" y="460" as="geometry" />
+        </mxCell>
+        <mxCell id="p920-2-nic" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=8;" value="&lt;b&gt;25G NIC @ 10G&lt;/b&gt;&lt;br&gt;(10G breakout cable)&lt;br&gt;&lt;font color=&quot;#7c4dff&quot;&gt;NVMe-oF Target&lt;/font&gt;" vertex="1">
+          <mxGeometry height="50" width="140" x="1545" y="470" as="geometry" />
+        </mxCell>
+        <mxCell id="p920-2-nic-p0" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=7;" value="Port 0 → Eth1/5/3&lt;br&gt;10.0.2.12/24" vertex="1">
+          <mxGeometry height="30" width="75" x="1545" y="525" as="geometry" />
+        </mxCell>
+        <mxCell id="p920-2-nic-p1" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=7;" value="Port 1 → Eth1/5/4&lt;br&gt;10.0.2.13/24" vertex="1">
+          <mxGeometry height="30" width="75" x="1625" y="525" as="geometry" />
+        </mxCell>
+        <mxCell id="p920-2-vm" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#bbdefb;strokeColor=#1976d2;fontSize=7;" value="&lt;b&gt;Storage VM&lt;/b&gt;&lt;br&gt;Ubuntu 22.04&lt;br&gt;nvmet target" vertex="1">
+          <mxGeometry height="50" width="100" x="1750" y="475" as="geometry" />
+        </mxCell>
+
+        <!-- Storage RDMA Path -->
+        <mxCell id="storage-rdma-arrow" edge="1" parent="1" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#82b366;strokeWidth=3;dashed=1;dashPattern=5 5;endArrow=classic;startArrow=classic;" source="gpu1-cx4-p0" target="p920-1-nic-p0">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="storage-rdma-arrow2" edge="1" parent="1" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#82b366;strokeWidth=3;dashed=1;dashPattern=5 5;endArrow=classic;startArrow=classic;" source="gpu2-cx4-p0" target="p920-2-nic-p0">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Storage Label -->
+        <mxCell id="storage-rdma-label" parent="1" style="text;html=1;strokeColor=none;fillColor=#ffffff;align=center;fontSize=9;fontColor=#2e7d32;fontStyle=1" value="STORAGE RDMA&lt;br&gt;40G → 10G&lt;br&gt;NVMe-oF/RoCEv2" vertex="1">
+          <mxGeometry height="45" width="90" x="955" y="500" as="geometry" />
+        </mxCell>
+
+        <!-- ==================== ESXi VM TIER ==================== -->
+        <mxCell id="esxi-tier-box" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;dashed=1;opacity=30;" value="" vertex="1">
+          <mxGeometry height="380" width="800" x="100" y="660" as="geometry" />
+        </mxCell>
+        <mxCell id="esxi-tier-label" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;fontSize=14;fontColor=#1a5fb4;fontStyle=1" value="RDMA VM CLUSTER - ESXi SR-IOV (8x Ubuntu VMs with ConnectX-4 Lx)" vertex="1">
+          <mxGeometry height="25" width="500" x="110" y="665" as="geometry" />
+        </mxCell>
+
+        <!-- ESXi Host 2 (192.168.50.32) -->
+        <mxCell id="esxi2-box" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;dashed=1;opacity=60;" value="" vertex="1">
+          <mxGeometry height="320" width="360" x="120" y="700" as="geometry" />
+        </mxCell>
+        <mxCell id="esxi2-label" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;fontSize=11;fontColor=#1a5fb4;fontStyle=1" value="ESXi Host 2 (P920) - 192.168.50.32&lt;br&gt;&lt;font style=&quot;font-size:9px;font-weight:normal&quot;&gt;48 Cores | 511GB RAM | ConnectX-4 Lx SR-IOV&lt;/font&gt;" vertex="1">
+          <mxGeometry height="35" width="250" x="175" y="705" as="geometry" />
+        </mxCell>
+        <mxCell id="esxi2-vmnic" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=8;" value="&lt;b&gt;vmnic5+6&lt;/b&gt; → Eth1/1/1-2&lt;br&gt;ConnectX-4 Lx (SR-IOV)" vertex="1">
+          <mxGeometry height="35" width="150" x="225" y="745" as="geometry" />
+        </mxCell>
+        <mxCell id="vm5" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=8;" value="&lt;b&gt;ubunturdma5&lt;/b&gt;&lt;br&gt;.107 | rocep11s0" vertex="1">
+          <mxGeometry height="40" width="80" x="135" y="800" as="geometry" />
+        </mxCell>
+        <mxCell id="vm6" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=8;" value="&lt;b&gt;ubunturdma6&lt;/b&gt;&lt;br&gt;.51 | rocep11s0" vertex="1">
+          <mxGeometry height="40" width="80" x="225" y="800" as="geometry" />
+        </mxCell>
+        <mxCell id="vm7" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=8;" value="&lt;b&gt;ubunturdma7&lt;/b&gt;&lt;br&gt;.150 | rocep11s0" vertex="1">
+          <mxGeometry height="40" width="80" x="315" y="800" as="geometry" />
+        </mxCell>
+        <mxCell id="vm8" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=8;" value="&lt;b&gt;ubunturdma8&lt;/b&gt;&lt;br&gt;.94 | rocep11s0" vertex="1">
+          <mxGeometry height="40" width="80" x="405" y="800" as="geometry" />
+        </mxCell>
+        <mxCell id="esxi2-rdma" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;fontSize=8;fontColor=#1a5fb4;" value="All VMs: 8 vCPU | 32GB RAM | RoCEv2 Ready" vertex="1">
+          <mxGeometry height="15" width="200" x="200" y="855" as="geometry" />
+        </mxCell>
+
+        <!-- ESXi Host 1 (192.168.50.152) -->
+        <mxCell id="esxi1-box" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;dashed=1;opacity=60;" value="" vertex="1">
+          <mxGeometry height="320" width="360" x="520" y="700" as="geometry" />
+        </mxCell>
+        <mxCell id="esxi1-label" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;fontSize=11;fontColor=#1a5fb4;fontStyle=1" value="ESXi Host 1 (P920) - 192.168.50.152&lt;br&gt;&lt;font style=&quot;font-size:9px;font-weight:normal&quot;&gt;48 Cores | 511GB RAM | ConnectX-4 Lx SR-IOV&lt;/font&gt;" vertex="1">
+          <mxGeometry height="35" width="250" x="575" y="705" as="geometry" />
+        </mxCell>
+        <mxCell id="esxi1-vmnic" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=8;" value="&lt;b&gt;vmnic3+4&lt;/b&gt; → Eth1/2/1-2&lt;br&gt;ConnectX-4 Lx (SR-IOV)" vertex="1">
+          <mxGeometry height="35" width="150" x="625" y="745" as="geometry" />
+        </mxCell>
+        <mxCell id="vm1" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=8;" value="&lt;b&gt;ubunturdma1&lt;/b&gt;&lt;br&gt;.152 | rocep19s0" vertex="1">
+          <mxGeometry height="40" width="80" x="535" y="800" as="geometry" />
+        </mxCell>
+        <mxCell id="vm2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=8;" value="&lt;b&gt;ubunturdma2&lt;/b&gt;&lt;br&gt;.153 | rocep11s0" vertex="1">
+          <mxGeometry height="40" width="80" x="625" y="800" as="geometry" />
+        </mxCell>
+        <mxCell id="vm3" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=8;" value="&lt;b&gt;ubunturdma3&lt;/b&gt;&lt;br&gt;.154 | rocep19s0" vertex="1">
+          <mxGeometry height="40" width="80" x="715" y="800" as="geometry" />
+        </mxCell>
+        <mxCell id="vm4" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=8;" value="&lt;b&gt;ubunturdma4&lt;/b&gt;&lt;br&gt;.155 | rocep11s0" vertex="1">
+          <mxGeometry height="40" width="80" x="805" y="800" as="geometry" />
+        </mxCell>
+        <mxCell id="esxi1-rdma" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;fontSize=8;fontColor=#1a5fb4;" value="All VMs: 8 vCPU | 32GB RAM | RoCEv2 Ready" vertex="1">
+          <mxGeometry height="15" width="200" x="600" y="855" as="geometry" />
+        </mxCell>
+
+        <!-- ==================== INFO BOXES ==================== -->
+        <!-- Network Config -->
+        <mxCell id="info-net-box" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;dashed=1;opacity=80;" value="" vertex="1">
+          <mxGeometry height="130" width="220" x="1100" y="660" as="geometry" />
+        </mxCell>
+        <mxCell id="info-net" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;fontSize=8;" value="&lt;b&gt;Network Configuration&lt;/b&gt;&lt;br&gt;&lt;b&gt;Compute VLAN:&lt;/b&gt; 100 (10.0.1.0/24)&lt;br&gt;&lt;b&gt;Storage VLAN:&lt;/b&gt; 200 (10.0.2.0/24)&lt;br&gt;&lt;b&gt;Protocol:&lt;/b&gt; RoCEv2 (UDP 4791)&lt;br&gt;&lt;b&gt;QoS:&lt;/b&gt; CoS 3 / DSCP 26&lt;br&gt;&lt;b&gt;Flow Control:&lt;/b&gt; PFC Priority 3&lt;br&gt;&lt;b&gt;Congestion:&lt;/b&gt; ECN + WRED + DCQCN&lt;br&gt;&lt;b&gt;MTU:&lt;/b&gt; 9216 (switch) / 9000 (hosts)" vertex="1">
+          <mxGeometry height="120" width="200" x="1110" y="665" as="geometry" />
+        </mxCell>
+
+        <!-- Performance -->
+        <mxCell id="info-perf-box" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;dashed=1;opacity=80;" value="" vertex="1">
+          <mxGeometry height="130" width="220" x="1340" y="660" as="geometry" />
+        </mxCell>
+        <mxCell id="info-perf" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;fontSize=8;" value="&lt;b&gt;Proven Performance (VM Cluster)&lt;/b&gt;&lt;br&gt;&lt;b&gt;Bandwidth:&lt;/b&gt; 9.23 Gbps (2x vs TCP)&lt;br&gt;&lt;b&gt;Latency:&lt;/b&gt; 14.37 μs (11x improvement)&lt;br&gt;&lt;b&gt;Jitter:&lt;/b&gt; 0.82 μs (sub-microsecond)&lt;br&gt;&lt;b&gt;Packet Drops:&lt;/b&gt; 96% reduction&lt;br&gt;&lt;b&gt;ECN Marked:&lt;/b&gt; 40M+ packets&lt;br&gt;&lt;b&gt;CNP Sent:&lt;/b&gt; 34M+ packets&lt;br&gt;&lt;b&gt;PFC Frames:&lt;/b&gt; 126M+ on switch fabric" vertex="1">
+          <mxGeometry height="120" width="200" x="1350" y="665" as="geometry" />
+        </mxCell>
+
+        <!-- Cluster Summary -->
+        <mxCell id="info-summary-box" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#76b900;strokeColor=#5a8c00;dashed=0;opacity=90;" value="" vertex="1">
+          <mxGeometry height="130" width="220" x="1580" y="660" as="geometry" />
+        </mxCell>
+        <mxCell id="info-summary" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;fontSize=8;fontColor=#ffffff;" value="&lt;b&gt;Cluster Summary&lt;/b&gt;&lt;br&gt;&lt;b&gt;Compute Nodes:&lt;/b&gt; 2 GPU + 8 VMs&lt;br&gt;&lt;b&gt;GPUs:&lt;/b&gt; 4x V100 (128GB HBM2 total)&lt;br&gt;&lt;b&gt;GPU Compute:&lt;/b&gt; 4x 40G = 160 Gbps&lt;br&gt;&lt;b&gt;Storage:&lt;/b&gt; 2x 10G = 20 Gbps (P920)&lt;br&gt;&lt;b&gt;NVMe Capacity:&lt;/b&gt; ~10.8 TB total&lt;br&gt;&lt;b&gt;RDMA NICs:&lt;/b&gt; 12x Mellanox&lt;br&gt;&lt;b&gt;Architecture:&lt;/b&gt; Separated fabrics" vertex="1">
+          <mxGeometry height="120" width="200" x="1590" y="665" as="geometry" />
+        </mxCell>
+
+        <!-- Career Target -->
+        <mxCell id="info-career-box" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#1a1a2e;strokeColor=#4a90d9;dashed=0;opacity=90;" value="" vertex="1">
+          <mxGeometry height="130" width="220" x="1820" y="660" as="geometry" />
+        </mxCell>
+        <mxCell id="info-career" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;fontSize=8;fontColor=#ffffff;" value="&lt;b&gt;Career Target: AI Network Engineer&lt;/b&gt;&lt;br&gt;&lt;b&gt;Companies:&lt;/b&gt; NVIDIA, AMD&lt;br&gt;&lt;br&gt;&lt;b&gt;Skills Demonstrated:&lt;/b&gt;&lt;br&gt;• Separate Compute/Storage Fabrics&lt;br&gt;• RDMA/RoCEv2 + PFC/ECN/DCQCN&lt;br&gt;• NVMe-oF over RDMA&lt;br&gt;• Multi-Rail GPU Networking&lt;br&gt;• GPU Direct RDMA concepts" vertex="1">
+          <mxGeometry height="120" width="200" x="1830" y="665" as="geometry" />
+        </mxCell>
+
+        <!-- Legend -->
+        <mxCell id="legend-box" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;" value="" vertex="1">
+          <mxGeometry height="130" width="180" x="1100" y="810" as="geometry" />
+        </mxCell>
+        <mxCell id="legend-title" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;fontSize=10;fontStyle=1" value="&lt;b&gt;Legend&lt;/b&gt;" vertex="1">
+          <mxGeometry height="15" width="60" x="1110" y="815" as="geometry" />
+        </mxCell>
+        <mxCell id="leg1" parent="1" style="text;html=1;strokeColor=none;fillColor=#f8cecc;align=left;fontSize=7;spacingLeft=3;" value="GPU Compute Tier" vertex="1">
+          <mxGeometry height="12" width="80" x="1110" y="835" as="geometry" />
+        </mxCell>
+        <mxCell id="leg2" parent="1" style="text;html=1;strokeColor=none;fillColor=#e1d5e7;align=left;fontSize=7;spacingLeft=3;" value="Storage Tier (P920)" vertex="1">
+          <mxGeometry height="12" width="80" x="1110" y="850" as="geometry" />
+        </mxCell>
+        <mxCell id="leg3" parent="1" style="text;html=1;strokeColor=none;fillColor=#dae8fc;align=left;fontSize=7;spacingLeft=3;" value="ESXi VM Cluster" vertex="1">
+          <mxGeometry height="12" width="80" x="1110" y="865" as="geometry" />
+        </mxCell>
+        <mxCell id="leg4" parent="1" style="text;html=1;strokeColor=none;fillColor=#76b900;align=left;fontSize=7;spacingLeft=3;fontColor=#ffffff;" value="NVIDIA V100 GPU" vertex="1">
+          <mxGeometry height="12" width="80" x="1110" y="880" as="geometry" />
+        </mxCell>
+        <mxCell id="leg5" parent="1" style="text;html=1;strokeColor=none;fillColor=#fff3e0;align=left;fontSize=7;spacingLeft=3;" value="NVMe Storage" vertex="1">
+          <mxGeometry height="12" width="80" x="1110" y="895" as="geometry" />
+        </mxCell>
+        <mxCell id="leg-lines" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;fontSize=7;" value="&lt;font color=&quot;#76b900&quot;&gt;━━&lt;/font&gt; Compute RDMA (40G)&lt;br&gt;&lt;font color=&quot;#82b366&quot;&gt;┅┅&lt;/font&gt; Storage RDMA (40G→10G)" vertex="1">
+          <mxGeometry height="25" width="130" x="1110" y="910" as="geometry" />
+        </mxCell>
+
+        <!-- Signature -->
+        <mxCell id="signature" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=right;fontSize=9;fontColor=#666666;" value="Eniz Aksoy | CCIE #23970 | AI Network Engineer Portfolio&lt;br&gt;github.com/Enizaksoy | January 2026" vertex="1">
+          <mxGeometry height="30" width="300" x="1600" y="950" as="geometry" />
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

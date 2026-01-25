@@ -1,0 +1,75 @@
+================================================================================
+MANUAL PFC CONFIGURATION - Run on Each Ubuntu Server
+================================================================================
+
+For ALL 8 servers (ubunturdma1 through ubunturdma8), run these commands:
+
+--------------------------------------------------------------------------------
+1. Install lldpad:
+--------------------------------------------------------------------------------
+sudo apt-get update
+sudo apt-get install -y lldpad
+
+--------------------------------------------------------------------------------
+2. Start and enable lldpad service:
+--------------------------------------------------------------------------------
+sudo systemctl start lldpad
+sudo systemctl enable lldpad
+
+--------------------------------------------------------------------------------
+3. Enable PFC on ens192 interface (Priority 3 for RoCE):
+--------------------------------------------------------------------------------
+sudo lldptool -T -i ens192 -V PFC enableTx=yes
+sudo lldptool -i ens192 -T -V PFC -c enabled=0,0,0,1,0,0,0,0
+
+--------------------------------------------------------------------------------
+4. Configure LLDP admin status:
+--------------------------------------------------------------------------------
+sudo lldptool set-lldp -i ens192 adminStatus=rxtx
+
+--------------------------------------------------------------------------------
+5. Verify PFC is enabled:
+--------------------------------------------------------------------------------
+sudo ethtool -a ens192
+sudo lldptool -t -i ens192 -V PFC
+
+================================================================================
+SERVER LIST (copy these commands to each):
+================================================================================
+
+ubunturdma1: ssh versa@192.168.11.152
+ubunturdma2: ssh versa@192.168.11.153
+ubunturdma3: ssh versa@192.168.11.154
+ubunturdma4: ssh versa@192.168.11.155
+ubunturdma5: ssh versa@192.168.11.107
+ubunturdma6: ssh versa@192.168.12.51
+ubunturdma7: ssh versa@192.168.20.150
+ubunturdma8: ssh versa@192.168.30.94
+
+================================================================================
+EXPECTED OUTPUT after "sudo ethtool -a ens192":
+================================================================================
+Pause parameters for ens192:
+Autonegotiate:  off
+RX:             on   <-- Should show "on" after PFC enabled
+TX:             on   <-- Should show "on" after PFC enabled
+
+================================================================================
+AFTER CONFIGURATION - Test and Verify:
+================================================================================
+
+1. Check switch for PFC pause frames:
+   ssh admin@192.168.50.229
+   show interface ethernet1/2/2 priority-flow-control
+
+   Expected: RxPPP and TxPPP should be > 0 during traffic
+
+2. Run traffic test:
+   bash saturate_cross_esxi.sh 60
+
+3. Check for MMU drops (should be 0 or minimal):
+   show queuing interface ethernet1/2/2
+
+   Expected: "Ingress MMU Drop Pkts" should be 0 or very low
+
+================================================================================

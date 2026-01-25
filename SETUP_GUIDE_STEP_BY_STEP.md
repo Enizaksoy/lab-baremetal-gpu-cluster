@@ -10,7 +10,10 @@ This LAB guide documents every step of building a bare-metal AI training cluster
 
 ## Table of Contents
 
+0. [Step 0: Identify RDMA Device Name](#step-0-identify-rdma-device-name)
 1. [Step 1: Configure RDMA Network (40G Ports)](#step-1-configure-rdma-network-40g-ports)
+1.5. [Step 1.5: Configure Leaf Switches (Optional)](#step-15-configure-leaf-switches-optional)
+1.6. [Step 1.6: Configure PFC for Lossless RoCE](#step-16-configure-pfc-for-lossless-roce)
 2. [Step 2: Test RDMA Performance](#step-2-test-rdma-performance)
 3. [Step 3: Compare TCP vs RDMA](#step-3-compare-tcp-vs-rdma)
 4. [Step 4: Install NVIDIA Drivers](#step-4-install-nvidia-drivers)
@@ -27,6 +30,64 @@ This LAB guide documents every step of building a bare-metal AI training cluster
 
 ---
 
+## Step 0: Identify RDMA Device Name
+
+### Goal
+Find the correct RDMA device name before running any tests. Device names can vary based on kernel version and driver configuration.
+
+### Commands
+
+```bash
+# List all RDMA devices
+ibv_devices
+
+# Show detailed device info (ports, state, speed)
+ibstat
+```
+
+### Example Output
+
+```
+$ ibv_devices
+    device              node GUID
+    ------              ----------------
+    rocep130s0          248a070300685ac0
+
+$ ibstat
+CA 'rocep130s0'
+    CA type: MT4103
+    Number of ports: 2
+    Firmware version: 2.38.5000
+    Port 1:
+        State: Active
+        Physical state: LinkUp
+        Rate: 40
+        Link layer: Ethernet
+    Port 2:
+        State: Active
+        Physical state: LinkUp
+        Rate: 40
+        Link layer: Ethernet
+```
+
+### Device Naming Convention
+
+| Naming Style | Example | When Used |
+|--------------|---------|-----------|
+| Legacy IB | `mlx4_0` | Older kernels, InfiniBand mode |
+| RoCE/PCIe | `rocep130s0` | Newer kernels, RoCE mode |
+
+> **Important:** The device name `rocep130s0` means: `roce` (RoCE device) + `p130` (PCIe bus 130) + `s0` (slot 0). Your device name may differ based on PCIe topology.
+
+### Port to Interface Mapping
+
+| IB Port | Linux Interface | IP Subnet | VLAN |
+|---------|-----------------|-----------|------|
+| Port 1 | ens6 | 10.0.1.0/24 | 101 |
+| Port 2 | ens6d1 | 10.0.0.0/24 | 100 |
+
+---
+
 ## Step 1: Configure RDMA Network (40G Ports)
 
 ### Goal
@@ -34,10 +95,19 @@ Configure both 40GbE ports on the ConnectX-3 Pro with persistent IP addresses fo
 
 ### Server Reference
 
-| Server | Management IP | IPMI IP | RDMA Port1 (ens6) | RDMA Port2 (ens6d1) |
-|--------|--------------|---------|-------------------|---------------------|
+| Server | Management IP | IPMI IP | Port1/ens6 (VLAN 101) | Port2/ens6d1 (VLAN 100) |
+|--------|--------------|---------|----------------------|------------------------|
 | gpuserver1 | 192.168.1.73 | 192.168.1.72 | 10.0.1.1 | 10.0.0.1 |
 | gpuserver2 | 192.168.1.71 | 192.168.1.70 | 10.0.1.2 | 10.0.0.2 |
+
+### Switch Port Connections
+
+| Server | Interface | Switch | Port | VLAN |
+|--------|-----------|--------|------|------|
+| gpuserver1 | ens6 | Leaf 1 | Eth1/28 | 101 |
+| gpuserver1 | ens6d1 | Leaf 2 | Eth1/28 | 100 |
+| gpuserver2 | ens6 | Leaf 1 | Eth1/27 | 101 |
+| gpuserver2 | ens6d1 | Leaf 2 | Eth1/27 | 100 |
 
 ### Configuration
 
@@ -112,31 +182,519 @@ ping -c 3 10.0.1.2   # From gpuserver1
 
 ---
 
+## Step 1.5: Configure Leaf Switches (Optional)
+
+### Goal
+Configure Cisco Nexus leaf switches for RoCE/RDMA traffic. Skip this if using back-to-back direct connections.
+
+### Network Topology
+
+```
+                 ┌─────────────────┐     ┌─────────────────┐
+                 │     Leaf 1      │◄───►│     Leaf 2      │
+                 │   (10.2.0.2)    │     │   (10.2.0.3)    │
+                 │ Cisco N9K-9332  │     │ Cisco N9K-9332  │
+                 └───┬────────┬────┘     └───┬────────┬────┘
+                 Eth1/27  Eth1/28        Eth1/27  Eth1/28
+                     │        │              │        │
+                     │        └──────────────┼────────┘
+                     │                       │
+                     ▼                       ▼
+              ┌─────────────┐         ┌─────────────┐
+              │ gpuserver2  │         │ gpuserver1  │
+              │ens6  ens6d1 │         │ens6  ens6d1 │
+              └─────────────┘         └─────────────┘
+```
+
+### Switch Credentials
+
+| Device | IP | Username | Password |
+|--------|-----|----------|----------|
+| Leaf 1 | 10.2.0.2 | cisco | cisco |
+| Leaf 2 | 10.2.0.3 | cisco | cisco |
+
+### VLAN Configuration
+
+| VLAN | Subnet | Purpose | Server Interface |
+|------|--------|---------|------------------|
+| 100 | 10.0.0.0/24 | RDMA Network 1 | ens6d1 (Port 2) |
+| 101 | 10.0.1.0/24 | RDMA Network 2 | ens6 (Port 1) |
+
+### Switch Port Configuration (NX-OS)
+
+```
+! Create VLANs
+vlan 100
+  name RDMA_Network_1
+vlan 101
+  name RDMA_Network_2
+
+! Configure GPU server ports
+interface Ethernet1/27
+  description GPU_Server_Port
+  switchport
+  switchport mode trunk
+  switchport trunk allowed vlan 100,101
+  mtu 9216
+  no shutdown
+
+interface Ethernet1/28
+  description GPU_Server_Port
+  switchport
+  switchport mode trunk
+  switchport trunk allowed vlan 100,101
+  mtu 9216
+  no shutdown
+
+! Inter-switch link (trunk all VLANs)
+interface Ethernet1/10
+  description Inter_Leaf_Link
+  switchport
+  switchport mode trunk
+  mtu 9216
+  no shutdown
+```
+
+### Enable LLDP on Linux Servers
+
+LLDP helps identify which server port connects to which switch port:
+
+```bash
+# Install LLDP daemon
+sudo apt install -y lldpd
+
+# Enable and start
+sudo systemctl enable --now lldpd
+
+# View neighbors (shows connected switch ports)
+sudo lldpcli show neighbors
+```
+
+### Verify Connectivity
+
+```bash
+# From gpuserver1
+ping -c 3 10.0.0.2   # Test VLAN 100
+ping -c 3 10.0.1.2   # Test VLAN 101
+
+# Check switch MAC tables (from switch CLI)
+show mac address-table dynamic
+show lldp neighbors
+```
+
+### Key Learning
+
+> **Back-to-Back vs Switched:** Direct connections give lowest latency (~0.85 µs) but limit you to 2 nodes. Switches add ~2-3 µs latency but enable scaling to many nodes. For production clusters, switches are essential.
+
+> **VLAN Separation:** Using separate VLANs (100 and 101) for each RDMA network allows for traffic isolation and easier troubleshooting.
+
+---
+
+## Step 1.6: Configure PFC for Lossless RoCE
+
+### Goal
+Enable Priority Flow Control (PFC) to achieve lossless Ethernet for RoCE/RDMA traffic. Without PFC, large RDMA transfers can experience packet drops causing "protection errors."
+
+### Check Current State (Before Configuration)
+
+First, verify PFC and DSCP mapping are not configured:
+
+**On Servers:**
+```bash
+# Check PFC status
+dcb pfc show dev ens6
+
+# Check DSCP to priority mapping
+dcb app show dev ens6
+```
+
+**On Switch (NX-OS):**
+```
+show interface Eth1/27 priority-flow-control
+```
+
+### Actual Output (Before Configuration)
+
+**gpuserver1:**
+```
+--- PFC Status ---
+pfc-cap 8 macsec-bypass off delay 0
+prio-pfc 0:off 1:off 2:off 3:off 4:off 5:off 6:off 7:off
+
+--- DSCP/Priority Mapping ---
+(empty = no mapping configured)
+
+--- Pause Frame Counters ---
+     rx_pause: 0
+     tx_pause: 0
+```
+
+**gpuserver2:**
+```
+--- PFC Status ---
+pfc-cap 8 macsec-bypass off delay 0
+prio-pfc 0:off 1:off 2:off 3:off 4:off 5:off 6:off 7:off
+
+--- DSCP/Priority Mapping ---
+(empty = no mapping configured)
+
+--- Pause Frame Counters ---
+     rx_pause: 0
+     tx_pause: 0
+```
+
+**Leaf 1 Switch:**
+```
+============================================================
+Port               Mode Oper(VL bmap)  RxPPP      TxPPP
+============================================================
+Ethernet1/27       Auto Off           0          0
+Ethernet1/28       Auto Off           0          0
+```
+
+### The Problem
+
+| Component | Current State | Issue |
+|-----------|---------------|-------|
+| Server PFC | All priorities OFF | No PAUSE frames will be sent/honored |
+| Server DSCP Mapping | Empty | NCCL's DSCP 26 packets go to default queue |
+| Switch PFC | Mode: Auto, Oper: Off | Switch won't send/honor PAUSE frames |
+| Pause Counters | 0 | Confirms no flow control happening |
+
+> **Result:** When buffers fill during large RDMA transfers, packets are DROPPED instead of paused, causing "Completion with error, Failed status 12" errors.
+
+### Why PFC is Required
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    WITHOUT PFC (LOSSY)                          │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│   Large RDMA Transfer → Switch Buffer Fills → PACKETS DROPPED   │
+│                                              → RDMA Error!       │
+│                                                                  │
+│   Result: "Completion with error, Failed status 12"             │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────┐
+│                    WITH PFC (LOSSLESS)                          │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│   Large RDMA Transfer → Buffer Fills → PAUSE Frame Sent         │
+│                                      → Sender Pauses            │
+│                                      → Buffer Drains            │
+│                                      → Resume → SUCCESS!        │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Traffic Flow: DSCP → Priority → PFC
+
+Understanding how packets get mapped to PFC priorities:
+
+```
+┌──────────────────────────────────────────────────────────────────────────┐
+│                     LOSSLESS RoCE PACKET FLOW                             │
+├──────────────────────────────────────────────────────────────────────────┤
+│                                                                           │
+│   1. APPLICATION (NCCL)                                                   │
+│      └── Marks packets with DSCP 26 (AF31) in IP header                  │
+│                                                                           │
+│   2. LINUX OS (tc qdisc / dcb)                                           │
+│      └── Maps DSCP 26 → Priority 3 (802.1p CoS)                          │
+│                                                                           │
+│   3. NIC (ConnectX)                                                       │
+│      └── PFC enabled on Priority 3                                        │
+│      └── Sends PAUSE frames when RX buffer fills                         │
+│                                                                           │
+│   4. SWITCH (Nexus)                                                       │
+│      └── PFC enabled on Priority 3                                        │
+│      └── Honors incoming PAUSE frames                                     │
+│      └── Sends PAUSE frames when egress congested                        │
+│                                                                           │
+└──────────────────────────────────────────────────────────────────────────┘
+```
+
+### Priority Assignment (Best Practice)
+
+| Traffic Type | DSCP | Priority (CoS) | PFC Enabled |
+|--------------|------|----------------|-------------|
+| GPU/NCCL (RoCE) | 26 (AF31) | 3 | ✅ Yes |
+| Storage/NVMe-oF (RoCE) | 24 (CS3) | 4 | ✅ Yes |
+| Management/Default | 0 | 0 | ❌ No |
+
+> **Why separate priorities?** GPU traffic is bursty and latency-sensitive. Storage traffic is continuous and throughput-sensitive. Separating them prevents storage congestion from pausing GPU sync operations.
+
+### Part A: Switch Configuration (Nexus 9332)
+
+Configure PFC and QoS on the Nexus switches:
+
+```
+! Enable QoS globally
+feature qos
+
+! Create class-map to match RoCE traffic (DSCP 26)
+class-map type qos match-all ROCE_TRAFFIC
+  match dscp 26
+
+! Create policy-map to set CoS priority
+policy-map type qos ROCE_POLICY
+  class ROCE_TRAFFIC
+    set qos-group 3
+
+! Create network-qos policy for PFC
+policy-map type network-qos ROCE_NET_POLICY
+  class type network-qos class-default
+    mtu 9216
+  class type network-qos c-out-8q-q3
+    pause pfc-cos 3
+    mtu 9216
+
+! Apply policies globally
+system qos
+  service-policy type qos input ROCE_POLICY
+  service-policy type network-qos ROCE_NET_POLICY
+
+! Enable PFC on GPU server interfaces
+interface Ethernet1/27
+  priority-flow-control mode on
+
+interface Ethernet1/28
+  priority-flow-control mode on
+```
+
+### Part B: Server Configuration (Ubuntu + ConnectX-3)
+
+#### Using Linux DCB Tools (Inbox Driver - Recommended)
+
+For ConnectX-3 with inbox mlx4 driver, use the `dcb` tool:
+
+```bash
+# 1. Enable PFC on Priority 3 for both interfaces
+sudo dcb pfc set dev ens6 prio-pfc 0:off 1:off 2:off 3:on 4:off 5:off 6:off 7:off
+sudo dcb pfc set dev ens6d1 prio-pfc 0:off 1:off 2:off 3:on 4:off 5:off 6:off 7:off
+
+# 2. Map DSCP 26 (AF31) to Priority 3 (may fail on inbox mlx4 - OK if switch does it)
+sudo dcb app add dev ens6 dscp-prio 26:3
+sudo dcb app add dev ens6d1 dscp-prio 26:3
+
+# 3. Verify configuration
+dcb pfc show dev ens6
+dcb app show dev ens6
+```
+
+#### Actual Output (After Configuration)
+
+```
+$ dcb pfc show dev ens6
+pfc-cap 8 macsec-bypass off delay 0
+prio-pfc 0:off 1:off 2:off 3:on 4:off 5:off 6:off 7:off
+
+$ dcb app show dev ens6
+dscp-prio AF31:3
+```
+
+> **Note on DSCP Mapping:** The `dcb app add` command may return "Error 239" with inbox mlx4 driver. This is OK - the switch can do DSCP→Priority mapping instead. PFC (`dcb pfc set`) works reliably.
+
+#### Make Configuration Persistent (Systemd Service)
+
+Create a startup service so PFC survives reboot:
+
+```bash
+# Create the configuration script
+sudo tee /usr/local/bin/configure-roce-qos.sh << 'EOF'
+#!/bin/bash
+# Configure PFC and DSCP mapping for RoCE/RDMA
+
+# Wait for interfaces
+sleep 5
+
+# ens6 (VLAN 101)
+dcb app add dev ens6 dscp-prio 26:3 2>/dev/null
+dcb pfc set dev ens6 prio-pfc 0:off 1:off 2:off 3:on 4:off 5:off 6:off 7:off
+
+# ens6d1 (VLAN 100)
+dcb app add dev ens6d1 dscp-prio 26:3 2>/dev/null
+dcb pfc set dev ens6d1 prio-pfc 0:off 1:off 2:off 3:on 4:off 5:off 6:off 7:off
+
+# Enable ECN
+sysctl -w net.ipv4.tcp_ecn=1
+
+logger "RoCE QoS configured: PFC on priority 3, DSCP 26 mapped"
+EOF
+
+sudo chmod +x /usr/local/bin/configure-roce-qos.sh
+
+# Create systemd service
+sudo tee /etc/systemd/system/roce-qos.service << 'EOF'
+[Unit]
+Description=Configure RoCE QoS (PFC + DSCP mapping)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/configure-roce-qos.sh
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+# Enable the service
+sudo systemctl daemon-reload
+sudo systemctl enable roce-qos.service
+```
+
+#### Alternative: Using mlnx_qos (Requires MLNX_OFED)
+
+If you have MLNX_OFED installed (ConnectX-4 or newer):
+
+```bash
+mlnx_qos -i ens6 --pfc 0,0,0,1,0,0,0,0
+mlnx_qos -i ens6
+```
+
+> **Note:** MLNX_OFED 5.x does NOT support ConnectX-3. Use inbox driver with `dcb` tool instead.
+
+### Part C: NCCL Environment Variables
+
+NCCL uses DSCP 26 by default, but you can customize:
+
+```bash
+# Use default RoCE traffic class (DSCP 26)
+export NCCL_IB_TC=106
+
+# Or explicitly set DSCP value (26 = 0x1a)
+export NCCL_IB_SL=3
+
+# Enable ECN marking (optional, for congestion notification)
+export NCCL_IB_GID_INDEX=2
+export NCCL_IB_DISABLE=0
+```
+
+### Verification Commands
+
+#### On Switches (NX-OS):
+
+```
+! Check PFC status on interface
+show interface Ethernet1/27 priority-flow-control
+
+! Check PFC counters (pause frames sent/received)
+show interface Ethernet1/27 counters detailed | grep -i pfc
+
+! Verify QoS policy is applied
+show policy-map interface Ethernet1/27
+
+! Check buffer usage
+show queuing interface Ethernet1/27
+```
+
+#### On Servers (Linux):
+
+```bash
+# Check if PFC is enabled on NIC
+ethtool -S ens6 | grep -i pfc
+
+# Check DCBX status
+lldptool -t -i ens6 -V PFC
+
+# Monitor PFC pause frames
+watch -n 1 'ethtool -S ens6 | grep -E "(pause|pfc)"'
+
+# Check tc qdisc configuration
+tc qdisc show dev ens6
+tc filter show dev ens6
+```
+
+### ECN Configuration (Optional)
+
+ECN (Explicit Congestion Notification) can mark packets before buffers fill, reducing the need for PFC pauses:
+
+#### On Switch:
+
+```
+! Enable ECN marking at 70% buffer threshold
+policy-map type network-qos ROCE_NET_POLICY
+  class type network-qos c-out-8q-q3
+    pause pfc-cos 3
+    congestion-control ecn
+    ecn-threshold 70
+```
+
+#### On Server:
+
+```bash
+# Enable ECN in Linux TCP/IP stack
+sudo sysctl -w net.ipv4.tcp_ecn=1
+
+# Make persistent
+echo "net.ipv4.tcp_ecn = 1" | sudo tee -a /etc/sysctl.conf
+```
+
+### Troubleshooting PFC
+
+| Symptom | Cause | Solution |
+|---------|-------|----------|
+| RDMA bandwidth test fails | PFC not enabled | Enable PFC on switch + NIC |
+| High PFC pause count | Congestion or slow receiver | Check buffer allocation, add ECN |
+| No PFC pause frames | DSCP not mapped to priority | Verify tc/dcb mapping |
+| Latency spikes | Excessive PFC pauses | Tune ECN thresholds, check for oversubscription |
+
+### Key Learning
+
+> **PFC is End-to-End:** Every device in the path (NIC → Switch → NIC) must have PFC enabled on the same priority. If any device doesn't honor PFC, packets can still be dropped.
+
+> **DCBX Auto-Negotiation:** With MLNX_OFED and proper switch config, DCBX can auto-negotiate PFC settings. The switch "advertises" PFC requirements, and the NIC accepts them. With inbox drivers, manual configuration is usually required.
+
+> **Separate GPU and Storage:** If running both NCCL and NVMe-oF over RoCE, use different priorities (e.g., 3 for GPU, 4 for storage) to prevent interference.
+
+---
+
 ## Step 2: Test RDMA Performance
 
 ### Goal
 Verify RDMA is working and measure bandwidth/latency.
 
+### Prerequisites
+1. Run `ibv_devices` to confirm your device name (e.g., `rocep130s0`)
+2. Run `ibstat` to verify ports are Active and LinkUp
+3. Ensure IP connectivity with `ping`
+
 ### Commands
 
-**Bandwidth Test (ib_write_bw):**
+> **Note:** Replace `rocep130s0` with your actual device name from `ibv_devices`
+
+**Test on VLAN 101 (10.0.1.x network via Port 1/ens6):**
 
 ```bash
 # On gpuserver2 (server - start first):
-ib_write_bw --ib-dev=mlx4_0 --ib-port=2 --gid-index=2
+ib_write_bw --ib-dev=rocep130s0 --ib-port=1 --gid-index=2
 
 # On gpuserver1 (client):
-ib_write_bw --ib-dev=mlx4_0 --ib-port=2 --gid-index=2 10.0.0.2
+ib_write_bw --ib-dev=rocep130s0 --ib-port=1 --gid-index=2 10.0.1.2
+```
+
+**Test on VLAN 100 (10.0.0.x network via Port 2/ens6d1):**
+
+```bash
+# On gpuserver2 (server - start first):
+ib_write_bw --ib-dev=rocep130s0 --ib-port=2 --gid-index=2
+
+# On gpuserver1 (client):
+ib_write_bw --ib-dev=rocep130s0 --ib-port=2 --gid-index=2 10.0.0.2
 ```
 
 **Latency Test (ib_write_lat):**
 
 ```bash
 # On gpuserver2 (server):
-ib_write_lat --ib-dev=mlx4_0 --ib-port=2 --gid-index=2
+ib_write_lat --ib-dev=rocep130s0 --ib-port=1 --gid-index=2
 
 # On gpuserver1 (client):
-ib_write_lat --ib-dev=mlx4_0 --ib-port=2 --gid-index=2 10.0.0.2
+ib_write_lat --ib-dev=rocep130s0 --ib-port=1 --gid-index=2 10.0.1.2
 ```
 
 ### Actual Output
@@ -709,13 +1267,29 @@ Storage Network (Separate switch + ConnectX-3):
 
 ## Quick Reference Commands
 
+### Find RDMA Device
+```bash
+# List devices
+ibv_devices
+
+# Detailed status
+ibstat
+```
+
 ### RDMA Testing
 ```bash
-# Bandwidth
-ib_write_bw --ib-dev=mlx4_0 --ib-port=2 --gid-index=2 [server_ip]
+# Find your device name first!
+RDMA_DEV=$(ibv_devices | grep -v device | awk '{print $1}')
+echo "Your RDMA device: $RDMA_DEV"
+
+# Bandwidth (VLAN 101 / Port 1)
+ib_write_bw --ib-dev=rocep130s0 --ib-port=1 --gid-index=2 10.0.1.2
+
+# Bandwidth (VLAN 100 / Port 2)
+ib_write_bw --ib-dev=rocep130s0 --ib-port=2 --gid-index=2 10.0.0.2
 
 # Latency
-ib_write_lat --ib-dev=mlx4_0 --ib-port=2 --gid-index=2 [server_ip]
+ib_write_lat --ib-dev=rocep130s0 --ib-port=1 --gid-index=2 10.0.1.2
 ```
 
 ### NCCL Testing
@@ -743,6 +1317,10 @@ nvcc --version
 4. **Separate networks = better performance** - GPU and storage traffic shouldn't compete
 5. **GPUDirect makes a big difference** - 2× improvement for ~$150 upgrade
 6. **Test before production** - NCCL-tests reveals issues before real training
+7. **Device names can change!** - Always run `ibv_devices` to find the correct RDMA device name. It may be `mlx4_0` or `rocep130s0` depending on kernel/driver version
+8. **LLDP is your friend** - Install `lldpd` on servers to easily identify switch port connections
+9. **Switches add latency** - Back-to-back: ~0.85 µs, Through switches: ~3.5 µs (still excellent for RDMA)
+10. **VLANs organize traffic** - Use separate VLANs (100, 101) for each RDMA subnet for easier management
 
 ---
 
