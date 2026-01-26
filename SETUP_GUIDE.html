@@ -786,6 +786,25 @@ mlnx_qos -i ens6
 
 > **Note:** MLNX_OFED 5.x does NOT support ConnectX-3. Use inbox driver with `dcb` tool instead.
 
+#### Troubleshooting: Service Fails with "status=203/EXEC"
+
+If `systemctl status roce-qos.service` shows exit code 203, the script file is missing:
+
+```bash
+# Check if script exists
+ls -la /usr/local/bin/configure-roce-qos.sh
+
+# If missing, recreate it (copy the script above)
+# Then restart the service
+sudo systemctl restart roce-qos.service
+
+# Verify PFC is enabled
+dcb pfc show dev ens6
+# Should show: prio-pfc 0:off 1:off 2:off 3:on ...
+```
+
+> **Common Issue (Jan 2026):** The systemd service unit file may be created without the actual script. Always verify both exist after setup.
+
 ### Part C: NCCL Environment Variables
 
 NCCL uses DSCP 26 by default, but you can customize:
